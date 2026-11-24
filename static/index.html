@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Transcriptor de Entrevistas — Local</title>
+  <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body>
+  <div class="page">
+    <header class="header">
+      <div>
+        <h1>Transcriptor de Entrevistas</h1>
+        <p class="subtitle">Transcripción en español e identificación de hablantes 100 % local en tu equipo.</p>
+      </div>
+      <div class="status-pills" id="statusPills">
+        <span class="pill pill-muted" id="gpuStatus">Comprobando equipo…</span>
+        <span class="pill pill-muted" id="hfStatus">Token HF…</span>
+      </div>
+    </header>
+
+    <main class="main">
+      <!-- Banner de configuración del token HF (se muestra solo si falta) -->
+      <section class="card notice-card hidden" id="hfSetupCard">
+        <div class="notice-header">
+          <strong>Configuración única para identificar hablantes</strong>
+          <span class="badge-optional">Gratis · Solo se descarga una vez</span>
+        </div>
+        <p class="notice-text">
+          Para separar <strong>Hablante 1</strong>, <strong>Hablante 2</strong>, etc. de forma local, Pyannote requiere aceptar sus términos gratuitos en Hugging Face y pegar un token de lectura (<code>hf_…</code>). Tu audio <strong>nunca</strong> sale de tu computadora.
+        </p>
+        <ol class="setup-steps">
+          <li>Acepta las condiciones gratuitas en <a href="https://huggingface.co/pyannote/speaker-diarization-community-1" target="_blank" rel="noopener">pyannote/speaker-diarization-community-1</a>.</li>
+          <li>Crea un token de solo lectura en <a href="https://huggingface.co/settings/tokens" target="_blank" rel="noopener">huggingface.co/settings/tokens</a> y pégalo abajo.</li>
+        </ol>
+        <div class="token-row">
+          <input type="password" id="hfTokenInput" placeholder="Pega aquí tu token (hf_...)" autocomplete="off" />
+          <button type="button" class="btn btn-secondary" id="saveTokenBtn">Guardar token</button>
+        </div>
+        <p class="feedback-msg hidden" id="tokenFeedback"></p>
+      </section>
+
+      <!-- Tarjeta de carga de audio -->
+      <section class="card upload-card" id="uploadCard">
+        <div class="dropzone" id="dropzone" tabindex="0" role="button" aria-label="Seleccionar o arrastrar archivo de audio">
+          <input type="file" id="audioInput" accept="audio/*,video/mp4,video/webm,.mp3,.wav,.m4a,.ogg,.flac,.aac,.opus,.wma,.mp4,.webm" hidden />
+          <div class="dropzone-icon" aria-hidden="true">
+            <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/>
+              <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+              <line x1="12" x2="12" y1="19" y2="22"/>
+            </svg>
+          </div>
+          <p class="dropzone-title" id="dropzoneTitle">Arrastra tu audio aquí o haz clic para seleccionarlo</p>
+          <p class="dropzone-hint" id="dropzoneHint">Soporta MP3, WAV, M4A, OGG, FLAC, WEBM y MP4 · Ideal para entrevistas de 30 min a 2 horas</p>
+        </div>
+
+        <div class="file-selected hidden" id="fileSelectedBar">
+          <div class="file-info">
+            <span class="file-name" id="selectedFileName"></span>
+            <span class="file-size" id="selectedFileSize"></span>
+          </div>
+          <button type="button" class="btn-link" id="clearFileBtn">Cambiar archivo</button>
+        </div>
+
+        <div class="options-grid">
+          <div class="field">
+            <label for="speakersSelect">Número de hablantes</label>
+            <select id="speakersSelect">
+              <option value="auto" selected>Automático</option>
+              <option value="2">Exactamente 2 hablantes (entrevista 1 a 1)</option>
+              <option value="3">Exactamente 3 hablantes</option>
+              <option value="2-4">Entre 2 y 4 hablantes</option>
+              <option value="2-6">Entre 2 y 6 hablantes</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label for="modelSelect">Precisión / Velocidad</label>
+            <select id="modelSelect">
+              <option value="large-v3-turbo" selected>Recomendado — large-v3-turbo (rápido y preciso)</option>
+              <option value="medium">Más rápido — medium (para pruebas rápidas)</option>
+              <option value="large-v3">Máxima precisión — large-v3 (más lento)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="toggles-row">
+          <label class="checkbox-label">
+            <input type="checkbox" id="denoiseCheckbox" checked />
+            <span>Reducir ruido de fondo y nivelar voces (recomendado para audio difícil)</span>
+          </label>
+          <label class="checkbox-label">
+            <input type="checkbox" id="diarizeCheckbox" checked />
+            <span>Identificar hablantes (Hablante 1, Hablante 2…)</span>
+          </label>
+        </div>
+
+        <div class="actions-row">
+          <button type="button" class="btn btn-primary" id="transcribeBtn" disabled>
+            Transcribir entrevista
+          </button>
+          <button type="button" class="btn-link hidden" id="toggleTokenBtn">Configurar token HF</button>
+        </div>
+      </section>
+
+      <!-- Tarjeta de progreso -->
+      <section class="card progress-card hidden" id="progressCard" aria-live="polite">
+        <div class="progress-top">
+          <div>
+            <h2 class="progress-title" id="progressStage">Preparando audio…</h2>
+            <p class="progress-meta" id="progressMeta">Tiempo transcurrido: 00:00</p>
+          </div>
+          <span class="progress-percent" id="progressPercent">0 %</span>
+        </div>
+        <div class="progress-track">
+          <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+        </div>
+        <p class="progress-note" id="progressNote">
+          La primera vez se descargarán los modelos locales automáticamente. En entrevistas largas, el proceso corre en segundo plano sin cerrar la página.
+        </p>
+      </section>
+
+      <!-- Tarjeta de error -->
+      <section class="card error-card hidden" id="errorCard" role="alert">
+        <h2>No se pudo completar la transcripción</h2>
+        <p id="errorMessage"></p>
+        <button type="button" class="btn btn-secondary" id="retryBtn">Intentar de nuevo</button>
+      </section>
+
+      <!-- Tarjeta de resultado -->
+      <section class="card result-card hidden" id="resultCard">
+        <div class="result-header">
+          <div>
+            <h2>Transcripción</h2>
+            <p class="result-summary" id="resultSummary"></p>
+          </div>
+          <div class="result-actions">
+            <button type="button" class="btn btn-secondary" id="copyBtn">Copiar texto</button>
+            <button type="button" class="btn btn-primary" id="downloadBtn">Descargar .txt</button>
+          </div>
+        </div>
+
+        <div class="warning-banner hidden" id="resultWarning"></div>
+
+        <div class="audio-bar hidden" id="audioBar">
+          <audio id="audioPlayer" controls preload="metadata"></audio>
+          <span class="audio-hint">Haz clic en cualquier marca de tiempo para escuchar ese fragmento.</span>
+        </div>
+
+        <div class="speaker-legend" id="speakerLegend"></div>
+
+        <div class="transcript-list" id="transcriptList"></div>
+      </section>
+    </main>
+  </div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
