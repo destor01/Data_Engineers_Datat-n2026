@@ -1,23 +1,29 @@
-# Transcriptor Local de Entrevistas (Español)
+# Auditoría de Entrevistas ENCOVI — Local + JEV
 
-Aplicación web MVP 100 % local para transcribir entrevistas largas en español (30 min a 2 horas), con audio ruidoso y múltiples hablantes, usando **WhisperX** (`large-v3-turbo` en GPU) y **Pyannote** para identificar hablantes (`Hablante 1`, `Hablante 2`, …).
+Aplicación web en español para:
+
+1. **Transcribir entrevistas largas en español (30 min – 2 h) 100 % local** con **WhisperX** (`large-v3-turbo` en GPU) y **Pyannote** (`Hablante 1`, `Hablante 2`, …).
+2. **Evaluar la calidad de la entrevista contra las 51 reglas ENCOVI 2023 (secciones A1 y A2)** mediante el motor `encovi_jev` y el modelo **TypeSafe JEV (`typesafe/jev-1.14`)** en OpenRouter.
+3. **Subir transcripciones ya existentes (`.json` o `.txt`)** o cargar la entrevista de ejemplo para probar la auditoría JEV en segundos.
 
 ## Cómo ejecutarlo
 
-1. Haz doble clic en `start.bat` o ejecuta en PowerShell:
-   ```powershell
-   .\.venv\Scripts\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8000
-   ```
-2. Abre `http://127.0.0.1:8000` en tu navegador.
+Haz doble clic en `audio-audit\start.bat` (detecta automáticamente `.venv` o `..\.venv`) o ejecuta desde PowerShell en la raíz del repositorio:
 
-## Configuración única para identificar hablantes (Pyannote)
+```powershell
+.\.venv\Scripts\python.exe -m uvicorn app.main:app --app-dir audio-audit --host 127.0.0.1 --port 8000
+```
 
-El reconocimiento de voz corre 100 % local, pero los modelos de diarización de Pyannote están alojados en Hugging Face bajo licencia gratuita:
+Luego abre http://127.0.0.1:8000 en tu navegador.
 
-1. Crea o inicia sesión en una cuenta gratuita de [Hugging Face](https://huggingface.co/).
-2. Acepta los términos de uso gratuitos en:
-   - https://huggingface.co/pyannote/speaker-diarization-community-1
-3. Genera un token de lectura (**Read**) en https://huggingface.co/settings/tokens.
-4. Pégalo directamente en la interfaz web (se guarda localmente en `.env`) o cópialo en `.env` como `HF_TOKEN=hf_...`.
+## Variables en `.env`
 
-> Tu audio **nunca** se envía a internet; el token solo se usa para descargar el modelo a tu computadora la primera vez.
+El servidor lee automáticamente el `.env` de la raíz del repositorio y `audio-audit\.env` (sin necesidad de reiniciar al editarlo):
+
+```env
+HF_TOKEN=hf_...
+OPENROUTER_API_KEY=sk-or-...
+```
+
+- **`HF_TOKEN`** (gratis): necesario solo la primera vez para descargar el modelo local de Pyannote (`https://huggingface.co/pyannote/speaker-diarization-community-1`). Tu audio nunca sale de tu computadora.
+- **`OPENROUTER_API_KEY`**: necesario para llamar al modelo JEV real (`typesafe/jev-1.14`, ~\$0.0004–\$0.002 USD por entrevista). También puedes activar el **Modo prueba sin conexión** en la interfaz para probar el flujo con puntajes simulados.

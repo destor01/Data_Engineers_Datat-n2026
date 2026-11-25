@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import functools
 import gc
 import inspect
 import logging
@@ -109,6 +110,7 @@ def _configure_torch_safe_globals() -> None:
         logger.debug("No se pudieron registrar safe globals adicionales: %s", exc)
 
 
+@functools.lru_cache(maxsize=1)
 def get_hardware_status() -> dict[str, Any]:
     cuda_available = torch.cuda.is_available()
     gpu_name = None
@@ -462,9 +464,16 @@ def format_transcript_txt(
     lines.append("")
 
     for turn in turns:
-        ts = f"[{format_timestamp(turn['start'])} - {format_timestamp(turn['end'])}]"
+        start_val = turn.get("start")
+        end_val = turn.get("end")
+        if start_val is not None and end_val is not None and end_val != start_val:
+            ts = f"[{format_timestamp(start_val)} - {format_timestamp(end_val)}] "
+        elif start_val is not None:
+            ts = f"[{format_timestamp(start_val)}] "
+        else:
+            ts = ""
         overlap_tag = " [voces superpuestas]" if turn.get("has_overlap") else ""
-        lines.append(f"{ts} {turn['speaker']}{overlap_tag}:")
+        lines.append(f"{ts}{turn['speaker']}{overlap_tag}:")
         lines.append(turn["text"])
         lines.append("")
 
