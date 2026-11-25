@@ -21,3 +21,7 @@ Las acciones son `auto_corregir`, `sugerir`, `reportar` y `excluir`. Las sugeren
 Según el README del backend, error pesa 1, advertencia 0.5 e informativo 0. Estructura: 100 menos 15 por error y 5 por advertencia. Para reglas genéricas se utiliza la proporción de celdas afectadas respecto de registros por columnas publicadas; para reglas específicas, la proporción de registros afectados. El puntaje global promedia las dimensiones aplicables. La fórmula exacta de penalización y sus límites deben verificarse en `qa/motor.py`. Este puntaje no equivale a exactitud de clasificación.
 
 La regla ambiental sugerida por INE se refiere a representatividad mensual según horas y días sin datos. Los umbrales exactos, inclusividad y agregación deben confirmarse con el área técnica antes de tratarlos como norma definitiva.
+
+## Papel de la interfaz
+
+La interfaz no modifica las reglas ni constituye una nueva métrica: presenta resultados de los motores. Los resultados de demostración no proceden del archivo seleccionado. En HTTP, el adaptador genera archivos sin persistir cargas en PostgreSQL. Los turnos de voz no acreditan identidad o rol. Ver [arquitectura](architecture.md).

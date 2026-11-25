@@ -87,4 +87,8 @@ Una lista vacía debe representar que no hay bases configuradas; el formulario n
 
 ## Responsabilidades del backend
 
-Aplicar validación de archivos, límites, permisos, reglas institucionales y política de conservación. CORS debe admitir el origen del frontend; las rutas deben admitir HTTPS si la interfaz se publica con HTTPS. El contrato actual no incorpora autenticación ni aprobación de sugerencias; esas capacidades requieren un acuerdo y una implementación adicionales antes de exponer información restringida.
+Aplicar validación de archivos, límites, permisos, reglas institucionales y política de conservación. Con el proxy local, el navegador usa el mismo origen. Si se accede directamente a los backend, CORS debe admitir el origen del frontend; las rutas deben admitir HTTPS si la interfaz se publica con HTTPS. El contrato actual no incorpora autenticación ni aprobación de sugerencias; esas capacidades requieren un acuerdo y una implementación adicionales antes de exponer información restringida.
+
+## Descargas del adaptador
+
+GET /data-api/descargas/{job_id}/{role}, con job_id hexadecimal de 32 caracteres y role corregido, bitacora o reporte. Devuelve 404 si no existe. POST puede responder 400 por formato/base vacía o no configurada, 413 por carga mayor de 100 MB, 409 por ejecución ocupada, 422 por parámetros inválidos, 503 por DATABASE_URL ausente y 500 por fallo general; GET bases usa 503 para fallos de consulta. No se exponen originales mediante esta ruta.

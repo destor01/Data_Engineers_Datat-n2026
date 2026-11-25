@@ -17,12 +17,18 @@
 │       ├── README.md
 │       ├── schema.sql
 │       └── backend/
+├── interfaz/
+│   ├── src/
+│   ├── backend/main.py
+│   ├── docs/API.md
+│   ├── .env.example
+│   └── vite.config.ts
 ├── documentation/
 ├── .gitignore
 └── README.md
 ```
 
-`main` contiene la estructura integrada del repositorio; `audio-audit`, `data-audit` y `documentation` son ramas de trabajo. La integración de código no implica una aplicación unificada.
+`main` contiene la estructura integrada del repositorio; `audio-audit`, `data-audit` y `documentation` son ramas de trabajo. La interfaz común está en interfaz/; la integración ejecutada de los motores sigue pendiente de comprobar.
 
 ## Flujos de procesamiento
 
@@ -46,8 +52,22 @@ FastAPI expone la interfaz estática y API local. `app/main.py` guarda archivos 
 
 ## Data Audit
 
-El backend documenta `qa/lector.py`, `definicion.py`, `transformaciones.py`, `codificador.py`, `reglas.py`, `motor.py`, `salidas.py`, `texto.py` y `cli.py`. Las configuraciones YAML describen bases, alias, catálogos y reglas. `scripts/cargar_config.py` carga definiciones y diccionarios en PostgreSQL; `scripts/comparar_con_ine.py` compara resultados con publicaciones. El esquema contiene 19 tablas según el README. La bitácora incluye cargas, ejecuciones, hallazgos, correcciones y exclusiones. La CLI es la interfaz de operación confirmada por la documentación; no se ha revisado una interfaz gráfica de este módulo.
+El backend documenta `qa/lector.py`, `definicion.py`, `transformaciones.py`, `codificador.py`, `reglas.py`, `motor.py`, `salidas.py`, `texto.py` y `cli.py`. Las configuraciones YAML describen bases, alias, catálogos y reglas. `scripts/cargar_config.py` carga definiciones y diccionarios en PostgreSQL; `scripts/comparar_con_ine.py` compara resultados con publicaciones. El esquema contiene 19 tablas según el README. La bitácora incluye cargas, ejecuciones, hallazgos, correcciones y exclusiones. La CLI y el adaptador HTTP de interfaz/backend/main.py son caminos distintos: la CLI contempla persistencia de cargas; el adaptador genera archivos sin llamar a guardar_en_bd.
 
 ## Integración futura
 
-La selección del rol encuestador, auditoría de protocolos y navegación unificada son mejoras por verificar o implementar; no forman parte de los flujos confirmados arriba.
+La selección del rol encuestador y la auditoría de protocolos siguen sin comprobar. La navegación común ya está implementada en interfaz/.
+
+## Interfaz común
+
+```mermaid
+flowchart LR
+    U[Navegador] --> V[Vite: frontend y proxy local]
+    V -->|/audio-service sin prefijo| A[Audio Audit :8000]
+    V -->|/data-api| D[Adaptador :8001]
+    D --> Q[qa.motor y qa.salidas]
+    D --> P[(PostgreSQL: definiciones)]
+    Q --> F[interfaz/backend/almacen]
+```
+
+El proxy existe en desarrollo y preview, no dentro de dist/. Ver [operación integrada](interfaz.md).

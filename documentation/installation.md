@@ -56,3 +56,7 @@ Dependencias declaradas: psycopg[binary]>=3.2, openpyxl>=3.1, pandas>=2.2, PyYAM
 ## Reproducibilidad pendiente
 
 Registrar versiones exactas del entorno probado, comprobar ambos módulos después del traslado, preparar muestras autorizadas reproducibles para el jurado y documentar cómo obtener los diccionarios sin publicar material restringido.
+
+## Interfaz común
+
+La instalación completa de Node, modo demo/API, variables y tres servicios se encuentra en [Interfaz integrada](interfaz.md). La ubicación vigente es interfaz/, junto a los dos motores.

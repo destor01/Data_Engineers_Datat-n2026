@@ -15,3 +15,7 @@ Usar un repositorio privado mientras se revisa la autorización de publicación 
 ## Recomendaciones pendientes de implementación o verificación
 
 Aplicar mínimo privilegio en PostgreSQL, almacenamiento protegido, políticas de retención y borrado, control de acceso, trazabilidad de aprobación y revisión humana. Usar exclusivamente datos de demostración autorizados o sintéticos. Las correcciones deben ser trazables; no imputar ni cambiar significado sin justificación. No se afirma cumplimiento normativo certificado ni auditoría de seguridad completada.
+
+## Almacenamiento y acceso desde interfaz/
+
+El adaptador HTTP no implementa autenticación ni registro de cargas/aprobaciones en PostgreSQL. Conserva originales y salidas en interfaz/backend/almacen/ sin borrado automático. No exponerlo públicamente como está. El .gitignore del módulo excluye ese almacén y .env; las variables VITE_ son públicas. Dejar de esperar no cancela el procesamiento. La publicación estática necesita proxy propio y controles de acceso. Ver [operación](interfaz.md).

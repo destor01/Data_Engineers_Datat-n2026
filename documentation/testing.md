@@ -31,3 +31,22 @@ El README reporta igualdad en el conteo de defunciones conservadas (8841); no se
 | D5 | Comparación INE | Evidencia y explicación de discrepancias | Pendiente |
 
 Para Audio Audit se propone calcular WER = (sustituciones + eliminaciones + inserciones)/palabras de referencia, y DER para diarización conforme a un protocolo explícito. No existen métricas verificadas en la documentación recibida. Registrar fecha, commit, entorno, muestra, resultado y evidencia de cada prueba.
+
+## Interfaz: matriz de aceptación
+
+| ID | Caso | Criterio | Estado |
+|---|---|---|---|
+| I01 | Compilar frontend del commit auditado | tsc y Vite terminan sin errores | Aprobado en copia local |
+| I02 | Inicio, Audio y Datos | Navegación, teclado y vistas móviles utilizables | Pendiente |
+| I03 | Demo con WAV y CSV incluidos | Ejemplos identificados, sin envío a API | Pendiente en navegador |
+| I04 | Vacío, extensión y tamaño inválidos | Mensaje y formulario recuperable | Pendiente |
+| I05 | Dejar de esperar y reintentar | Recuperación sin afirmar cancelación del servidor | Pendiente |
+| I06 | TXT/JSON y filtro de severidad | Descargas identificadas y filtro correcto | Pendiente |
+| I07 | Catálogo real | Solo bases con versión activa; error controlado sin conexión | Pendiente |
+| I08 | Datos autorizados | Resultado y tres descargas HTTP coherentes con CLI sin guardar | Pendiente |
+| I09 | Audio breve real | Progreso, turnos, reproducción y TXT | Pendiente |
+| I10 | Diarización con/sin token | Resultado o error controlado, sin exponer token | Pendiente |
+| I11 | Dos auditorías simultáneas | Una ejecución por proceso; segunda recibe 409 | Pendiente |
+| I12 | Vista previa y publicación | Rutas de proxy disponibles, sin confundir preview con producción | Pendiente |
+
+Evidencia 2026-11-25: npm ci desde caché y npm run build en copia del frontend actual; Vite 6.4.6, ocho módulos. Sin pruebas nuevas de navegador ni motores. Registrar commit, entorno, muestra autorizada, resultado observado y evidencia por cada fila.

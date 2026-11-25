@@ -1,6 +1,6 @@
 # Quality Audit · Interfaz integrada
 
-Copia esta carpeta a la raíz del repositorio, junto a audio-audit/ y data-audit/. Incluye el frontend corregido, proxy local y un adaptador HTTP que utiliza el motor Data Audit original.
+Este módulo ya está ubicado en interfaz/, junto a audio-audit/ y data-audit/. Incluye el frontend corregido, proxy local y un adaptador HTTP que utiliza el motor Data Audit original.
 
 ## Demostración
 
@@ -38,7 +38,7 @@ cd audio-audit
 
 Si activas identificación de hablantes, configura antes el token en la interfaz original http://127.0.0.1:8000 y acepta las condiciones del modelo de diarización.
 
-Terminal 2, desde interfaz-integrada/: necesita Python 3.11+, PostgreSQL y esquema, configuración y diccionarios cargados según documentation/installation.md del repositorio.
+Terminal 2, desde interfaz/: necesita Python 3.11+, PostgreSQL y esquema, configuración y diccionarios cargados según documentation/installation.md del repositorio.
 
 ```powershell
 py -3 -m venv .venv
@@ -48,7 +48,7 @@ py -3 -m venv .venv
 
 El adaptador importa qa/ del motor original. Si está en otra ubicación configura DATA_ENGINE_PATH en .env con la ruta absoluta a backend/ que contiene qa/.
 
-Terminal 3, desde interfaz-integrada/:
+Terminal 3, desde interfaz/:
 
 ```powershell
 npm run dev
@@ -73,3 +73,5 @@ Uso local: el adaptador no tiene autenticación. Los archivos recibidos y las sa
 El .gitignore excluye .env, .venv/, node_modules/, dist/ y backend/almacen/. No agregues entradas reales a Git.
 
 La compilación se comprueba en esta entrega. Python, PostgreSQL, transcripción y diarización necesitan verificación en el equipo que tenga instalados los motores. No se realizaron pruebas de navegador ni se ejecutó el adaptador Python en este entorno.
+
+Documentación general: [instalación y operación integrada](../documentation/interfaz.md).
