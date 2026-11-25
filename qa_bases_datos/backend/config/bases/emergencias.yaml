@@ -1,0 +1,67 @@
+# Emergencias — SECONRED / CONRED
+# Estructura: base publicada "Base eventos_22_CONRED.csv" (separador ";", UTF-8 con BOM)
+# Crudo:      "Emergencias_SECONRED_2025.xlsx" (una hoja por mes, 3 filas de
+#             encabezado combinadas, fila de totales con fórmulas arriba)
+# No hay diccionario oficial: catálogos en catalogos.yaml (EMERG_AMENAZA, EMERG_SUBTIPO).
+#
+# La publicación 2022 tiene 12 columnas; el crudo 2025 trae además las cifras de
+# afectación (personas y viviendas). Se conservan como variables propias; en esas
+# columnas una celda vacía significa 0 (transformación vacio_como).
+
+base: EMERGENCIAS
+version: "2025"
+vigente_desde: 2025-01-01
+fuente: "Estructura de Base eventos_22_CONRED publicada + columnas de afectación del crudo 2025"
+
+formato_crudo:
+  tipo: hojas_mensuales
+  unir_hojas: true
+  fila_encabezado: 4             # 1: totales, 2-3: grupos combinados, 4: nombres
+  descartar_filas: [totales]
+
+variables:
+  - {nombre: numero, etiqueta: Correlativo, tipo: entero, requerida: true, alias: ["No.", "#"]}
+  - {nombre: cod_depto, etiqueta: Código de departamento, tipo: codigo, catalogo: DEPARTAMENTO, requerida: true, alias: [],
+     transformacion: {tipo: codificar_texto, campo: Departamento, catalogo: DEPARTAMENTO}}
+  - {nombre: departamento, etiqueta: Departamento, tipo: texto, requerida: true, alias: [Departamento]}
+  - {nombre: municipio, etiqueta: Municipio, tipo: texto, requerida: true, alias: [Municipio]}
+  - {nombre: cod_muni, etiqueta: Código de municipio (no está en la publicación 2022), tipo: codigo, catalogo: MUNICIPIO, alias: [],
+     transformacion: {tipo: codificar_texto, campo: Municipio, catalogo: MUNICIPIO, dentro_de: cod_depto}}
+  - {nombre: fecha, etiqueta: Fecha y hora de la emergencia, tipo: fecha_hora, requerida: true, alias: [Fecha y hora]}
+  - {nombre: amenaza, etiqueta: Amenaza, tipo: codigo, catalogo: EMERG_AMENAZA, requerida: true, alias: [Amenaza]}
+  - {nombre: subtipo_amenaza, etiqueta: Subtipo de amenaza, tipo: codigo, catalogo: EMERG_SUBTIPO, requerida: true, alias: [Subtipo amenaza]}
+  - {nombre: evento, etiqueta: Evento, tipo: texto, alias: [Evento]}
+  - {nombre: tipo_incidente, etiqueta: Tipo de incidente, tipo: texto, alias: [Emergencia (anteriormente tipo incidente)]}
+  - {nombre: incidente, etiqueta: Lugar del incidente, tipo: texto, alias: [Lugar]}
+  - {nombre: conteo_incidente, etiqueta: Conteo de incidentes, tipo: entero, min: 0, alias: [Emergencias]}
+  # ---- Afectación (crudo 2025) ----
+  - {nombre: personas_riesgo, etiqueta: Personas en riesgo, tipo: entero, min: 0, alias: [En riesgo],
+     transformacion: {tipo: vacio_como, campo: En riesgo, valor: 0}}
+  - {nombre: personas_afectadas, etiqueta: Personas afectadas, tipo: entero, min: 0, alias: [Afectadas],
+     transformacion: {tipo: vacio_como, campo: Afectadas, valor: 0}}
+  - {nombre: familias_afectadas, etiqueta: Familias afectadas, tipo: entero, min: 0, alias: [Familias afectadas],
+     transformacion: {tipo: vacio_como, campo: Familias afectadas, valor: 0}}
+  - {nombre: personas_damnificadas, etiqueta: Personas damnificadas, tipo: entero, min: 0, alias: [Damnificadas],
+     transformacion: {tipo: vacio_como, campo: Damnificadas, valor: 0}}
+  - {nombre: personas_evacuadas, etiqueta: Personas evacuadas, tipo: entero, min: 0, alias: [Evacuadas],
+     transformacion: {tipo: vacio_como, campo: Evacuadas, valor: 0}}
+  - {nombre: personas_albergadas, etiqueta: Personas albergadas, tipo: entero, min: 0, alias: [Albergadas],
+     transformacion: {tipo: vacio_como, campo: Albergadas, valor: 0}}
+  - {nombre: personas_desaparecidas, etiqueta: Personas desaparecidas, tipo: entero, min: 0, alias: [Desaparecidas],
+     transformacion: {tipo: vacio_como, campo: Desaparecidas, valor: 0}}
+  - {nombre: personas_heridas, etiqueta: Personas heridas, tipo: entero, min: 0, alias: [Heridas],
+     transformacion: {tipo: vacio_como, campo: Heridas, valor: 0}}
+  - {nombre: personas_hospitalizadas, etiqueta: Personas hospitalizadas, tipo: entero, min: 0, alias: [Hospitalizadas],
+     transformacion: {tipo: vacio_como, campo: Hospitalizadas, valor: 0}}
+  - {nombre: personas_fallecidas, etiqueta: Personas fallecidas, tipo: entero, min: 0, alias: [Fallecidas],
+     transformacion: {tipo: vacio_como, campo: Fallecidas, valor: 0}}
+  - {nombre: viviendas_riesgo, etiqueta: Viviendas en riesgo, tipo: entero, min: 0, alias: [Riesgo],
+     transformacion: {tipo: vacio_como, campo: Riesgo, valor: 0}}
+  - {nombre: viviendas_dano_leve, etiqueta: Viviendas con daño leve, tipo: entero, min: 0, alias: [Leve],
+     transformacion: {tipo: vacio_como, campo: Leve, valor: 0}}
+  - {nombre: viviendas_dano_moderado, etiqueta: Viviendas con daño moderado, tipo: entero, min: 0, alias: [Moderado],
+     transformacion: {tipo: vacio_como, campo: Moderado, valor: 0}}
+  - {nombre: viviendas_dano_severo, etiqueta: Viviendas con daño severo, tipo: entero, min: 0, alias: [Severo],
+     transformacion: {tipo: vacio_como, campo: Severo, valor: 0}}
+
+llave: [numero, fecha]
