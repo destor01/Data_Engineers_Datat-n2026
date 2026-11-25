@@ -1,0 +1,42 @@
+REVISION Y PENDIENTES — INTERFAZ INTEGRADA
+Fecha: 25 de noviembre de 2026
+
+FUENTE ANALIZADA
+C:\Users\jennm\OneDrive\Documentos\GitHub\Data_Engineers_Datat-n2026
+La carpeta DataEngineers de este chat solo se usa como destino de la entrega.
+No se modifico el repositorio de origen.
+
+ENTREGA
+interfaz-integrada debe colocarse junto a audio-audit y data-audit en la raiz del repositorio indicado.
+Contiene el frontend del origen con su estructura corregida, plantilla de entorno, exclusiones de Git, proxy local y un adaptador HTTP nuevo que llama al motor de datos original.
+
+COMPROBADO
+Instalacion de dependencias desde cache local.
+TypeScript estricto y compilacion de produccion: correctos.
+El codigo JavaScript original de Audio Audit supera node --check.
+
+PENDIENTE DE VERIFICAR
+No se realizaron pruebas de navegador para esta entrega.
+El adaptador HTTP nuevo de datos no se ejecuto: el entorno no dispone de Python instalado utilizable.
+No se ejecutaron PostgreSQL, transcripcion, diarizacion ni modelos de audio.
+Se debe validar el adaptador con el esquema y los catalogos cargados, y un archivo autorizado.
+La compilacion correcta del frontend no acredita funcionamiento integral.
+
+DEPENDENCIAS REALES
+Audio: servicio original en puerto 8000, FFmpeg, dependencias y modelos instalados. La diarizacion necesita token y condiciones del modelo aceptadas.
+Datos: Python 3.11+, PostgreSQL, esquema y catalogos originales. DATABASE_URL debe configurarse localmente.
+El adaptador importa el motor del repositorio; esta carpeta no sustituye audio-audit ni data-audit.
+
+ALCANCE DEL ADAPTADOR
+Consulta definiciones existentes y genera corregido.xlsx, bitacora.xlsx y reporte.json.
+No registra cargas ni aprobaciones en PostgreSQL.
+Admite una auditoria simultanea por proceso; usar un solo worker.
+Los archivos originales y salidas quedan en backend/almacen/ hasta su retiro por el responsable.
+No incorpora autenticacion: previsto para uso local.
+Dejar de esperar en el navegador no cancela el procesamiento del servidor.
+
+DESPLIEGUE
+Los proxies se aplican en npm run dev y npm run preview.
+Publicar solo dist requiere configurar /audio-service y /data-api en el alojamiento.
+El modo demo presenta ejemplos y no analiza el contenido cargado.
+No subir .env, dependencias, almacen, dist ni archivos reales a Git.
