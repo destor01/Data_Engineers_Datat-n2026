@@ -1,0 +1,93 @@
+# Nacimientos — RENAP
+# Estructura: base publicada "Nacimientos 2025" (datos.ine.gob.gt)
+# Códigos:    "Diccionario nacimientos 2018-2022"
+# Crudo:      "Nacimientos_Junio_renap_2026.xlsx"
+# Claves: ver defunciones.yaml
+
+base: NACIMIENTOS
+version: "2025"
+vigente_desde: 2025-01-01
+fuente: "Estructura de Nacimientos 2025 publicada; códigos del Diccionario nacimientos 2018-2022"
+
+variables:
+  - {nombre: Depreg, etiqueta: Departamento de registro, tipo: codigo, catalogo: DEPARTAMENTO, requerida: true, alias: [COD_DEPTO_EVENTO]}
+  - {nombre: Mupreg, etiqueta: Municipio de registro, tipo: codigo, catalogo: MUNICIPIO, requerida: true, regex: '^\d{4}$', alias: [COD_MUNIC_EVENTO],
+     transformacion: {tipo: municipio_compuesto, depto: COD_DEPTO_EVENTO, munic: COD_MUNIC_EVENTO}}
+  - {nombre: Mesreg, etiqueta: Mes de registro, tipo: codigo, catalogo: MES, requerida: true, alias: [],
+     transformacion: {tipo: parte_fecha, campo: FECHA_GRABACION, parte: mes}}
+  - {nombre: Añoreg, etiqueta: Año de registro, tipo: entero, requerida: true, min: 1900, max: 2100, alias: [],
+     transformacion: {tipo: parte_fecha, campo: FECHA_GRABACION, parte: anio}}
+  - {nombre: TipoIns, etiqueta: Tipo de inscripción, tipo: codigo, catalogo: NAC_TIPO_INSCRIPCION, alias: [TIPO_NACIMIENTO, TIPO_INSCRIPCION]}
+  - {nombre: Depocu, etiqueta: Departamento de ocurrencia, tipo: codigo, catalogo: DEPARTAMENTO, requerida: true, alias: [COD_DEPTO_NACIMIENTO]}
+  - {nombre: Mupocu, etiqueta: Municipio de ocurrencia, tipo: codigo, catalogo: MUNICIPIO, requerida: true, regex: '^\d{4}$', alias: [COD_MUNIC_NACIMIENTO],
+     transformacion: {tipo: municipio_compuesto, depto: COD_DEPTO_NACIMIENTO, munic: COD_MUNIC_NACIMIENTO}}
+  - {nombre: Libras, etiqueta: Peso en libras, tipo: entero, rango_de: [dicc_nacimientos, Peso en libras], alias: [PESO_LIBRAS]}
+  - {nombre: Onzas, etiqueta: Peso en onzas, tipo: entero, rango_de: [dicc_nacimientos, Peso en onzas], alias: [PESO_ONZAS]}
+  # El crudo trae DIA_NACIMIENTO como día de la semana ("Lunes") y MES_NACIMIENTO como texto:
+  # día y mes salen de FECHA_NACIMIENTO.
+  - {nombre: Diaocu, etiqueta: Día de ocurrencia, tipo: entero, requerida: true, min: 1, max: 31, alias: [],
+     transformacion: {tipo: parte_fecha, campo: FECHA_NACIMIENTO, parte: dia}}
+  - {nombre: Mesocu, etiqueta: Mes de ocurrencia, tipo: codigo, catalogo: MES, requerida: true, alias: [],
+     transformacion: {tipo: parte_fecha, campo: FECHA_NACIMIENTO, parte: mes}}
+  - {nombre: Añoocu, etiqueta: Año ocurrencia, tipo: entero, requerida: true, min: 1900, max: 2100, alias: [AÑO_NACIMIENTO, ANIO_NACIMIENTO]}
+  - {nombre: Sexo, etiqueta: Sexo del recien nacido (a), tipo: codigo, catalogo: SEXO, requerida: true, alias: [SEXO]}
+  - {nombre: Tipar, etiqueta: Tipo de parto, tipo: codigo, catalogo: NAC_TIPO_PARTO, alias: [TIPO_PARTO]}
+  - {nombre: Viapar, etiqueta: Via del parto, tipo: codigo, catalogo: NAC_VIA_PARTO, alias: [VIA_PARTO]}
+  # ---- Padre ----
+  - {nombre: Edadp, etiqueta: Edad del padre, tipo: entero, rango_de: [dicc_nacimientos, Edad del padre], alias: [EDAD_PADRE]}
+  - {nombre: Paisrep, etiqueta: País de residencia del padre, tipo: codigo, catalogo: PAIS, alias: [COD_PAIS_RESIDENCIA_PADRE]}
+  - {nombre: Deprep, etiqueta: Departamento de residencia del padre, tipo: codigo, catalogo: DEPARTAMENTO, alias: [COD_DEPTO_RESIDENCIA_PADRE]}
+  - {nombre: Muprep, etiqueta: Municipio de residencia del padre, tipo: codigo, catalogo: MUNICIPIO, regex: '^\d{4}$', alias: [COD_MUNIC_RESIDENCIA_PADRE],
+     transformacion: {tipo: municipio_compuesto, depto: COD_DEPTO_RESIDENCIA_PADRE, munic: COD_MUNIC_RESIDENCIA_PADRE}}
+  - {nombre: Pueblopp, etiqueta: Pueblo de pertenencia del padre, tipo: codigo, catalogo: PUEBLO, alias: [GRUPO_ETNICO_PADRE]}
+  - {nombre: Escivp, etiqueta: Estado civil del padre, tipo: codigo, catalogo: ESTADO_CIVIL, alias: [ESTADO_CIVIL_PADRE]}
+  - {nombre: Paisnacp, etiqueta: País de nacimiento del padre, tipo: codigo, catalogo: PAIS, alias: [COD_PAIS_NACIMIENTO_PADRE]}
+  - {nombre: Depnap, etiqueta: Departamento de nacimiento del padre, tipo: codigo, catalogo: DEPARTAMENTO, alias: [COD_DEPTO_NACIMIENTO_PADRE]}
+  - {nombre: Mupnap, etiqueta: Municipio de nacimiento del padre, tipo: codigo, catalogo: MUNICIPIO, regex: '^\d{4}$', alias: [COD_MUNIC_NACIMIENTO_PADRE],
+     transformacion: {tipo: municipio_compuesto, depto: COD_DEPTO_NACIMIENTO_PADRE, munic: COD_MUNIC_NACIMIENTO_PADRE}}
+  - {nombre: Escolap, etiqueta: Escolaridad del padre, tipo: codigo, catalogo: ESCOLARIDAD, alias: [ESCOLARIDAD_PADRE]}
+  # ---- Madre ----
+  - {nombre: Edadm, etiqueta: Edad de la madre, tipo: entero, requerida: true, rango_de: [dicc_nacimientos, Edad de la madre], alias: [EDAD_MADRE]}
+  - {nombre: Paisrem, etiqueta: País de residencia de la madre, tipo: codigo, catalogo: PAIS, alias: [COD_PAIS_RESIDENCIA_MADRE]}
+  - {nombre: Deprem, etiqueta: Departamento de residencia de la madre, tipo: codigo, catalogo: DEPARTAMENTO, alias: [COD_DEPTO_RESIDENCIA_MADRE]}
+  - {nombre: Muprem, etiqueta: Municipio de residencia de la madre, tipo: codigo, catalogo: MUNICIPIO, regex: '^\d{4}$', alias: [COD_MUNIC_RESIDENCIA_MADRE],
+     transformacion: {tipo: municipio_compuesto, depto: COD_DEPTO_RESIDENCIA_MADRE, munic: COD_MUNIC_RESIDENCIA_MADRE}}
+  - {nombre: Pueblopm, etiqueta: Pueblo de pertenencia de la madre, tipo: codigo, catalogo: PUEBLO, alias: [GRUPO_ETNICO_MADRE]}
+  - {nombre: Escivm, etiqueta: Estado civil de la madre, tipo: codigo, catalogo: ESTADO_CIVIL, alias: [ESTADO_CIVIL_MADRE]}
+  - {nombre: Paisnacm, etiqueta: País de nacimiento de la madre, tipo: codigo, catalogo: PAIS, alias: [COD_PAIS_NACIMIENTO_MADRE]}
+  - {nombre: Depnam, etiqueta: Departamento de nacimiento de la madre, tipo: codigo, catalogo: DEPARTAMENTO, alias: [COD_DEPTO_NACIMIENTO_MADRE]}
+  - {nombre: Mupnam, etiqueta: Municipio de nacimiento de la madre, tipo: codigo, catalogo: MUNICIPIO, regex: '^\d{4}$', alias: [COD_MUNIC_NACIMIENTO_MADRE],
+     transformacion: {tipo: municipio_compuesto, depto: COD_DEPTO_NACIMIENTO_MADRE, munic: COD_MUNIC_NACIMIENTO_MADRE}}
+  - {nombre: Escolam, etiqueta: Escolaridad de la madre, tipo: codigo, catalogo: ESCOLARIDAD, alias: [ESCOLARIDAD_MADRE]}
+  # ---- Atención e hijos ----
+  - {nombre: Asisrec, etiqueta: Asistencia recibida, tipo: codigo, catalogo: NAC_ASISTENCIA, alias: [TIPO_ASISTENCIA]}
+  - {nombre: Sitioocu, etiqueta: Sitio de ocurrencia, tipo: codigo, catalogo: NAC_SITIO, alias: [TIPO_LUGAR_NAC]}
+  - {nombre: Tohite, etiqueta: Total de hijos tenidos, tipo: entero, rango_de: [dicc_nacimientos, Total de hijos tenidos], alias: [HIJOS_TENIDOS]}
+  - {nombre: Tohinm, etiqueta: Total de hijos nacidos muertos, tipo: entero, rango_de: [dicc_nacimientos, Total de hijos nacidos muertos], alias: [HIJOS_MUERTOS]}
+  - {nombre: Tohivi, etiqueta: Total de hijos vivos, tipo: entero, rango_de: [dicc_nacimientos, Total de hijos vivos], alias: [HIJOS_VIVOS]}
+
+  # ---- En el diccionario 2018-2022 pero ya no en la publicación 2025 ----
+  - {nombre: Ocupap, etiqueta: Ocupación (Subgrupos CIUO-08) del padre, tipo: codigo, catalogo: OCUPACION_CIUO08, publica: false, alias: [OCUPACION_PADRE],
+     transformacion: {tipo: codificar_ia, catalogo: OCUPACION_CIUO08, campos: [OCUPACION_PADRE]}}
+  - {nombre: Ocupam, etiqueta: Ocupación (Subgrupos CIUO-08) de la madre, tipo: codigo, catalogo: OCUPACION_CIUO08, publica: false, alias: [OCUPACION_MADRE],
+     transformacion: {tipo: codificar_ia, catalogo: OCUPACION_CIUO08, campos: [OCUPACION_MADRE]}}
+
+auxiliares:
+  - {nombre: MOVIMIENTO, etiqueta: Número de movimiento RENAP (parte de la llave única), tipo: entero}
+  - {nombre: FECHA_GRABACION, etiqueta: Fecha en que RENAP grabó el registro (de ahí salen mes y año de registro), tipo: fecha_hora}
+  - {nombre: FECHA_NACIMIENTO, etiqueta: Fecha de nacimiento (de ahí salen día y mes de ocurrencia), tipo: fecha}
+  - {nombre: COD_SEDE_EVENTO, etiqueta: Sede de RENAP, tipo: entero}
+  - {nombre: COD_PAIS_EVENTO, etiqueta: País de registro, tipo: codigo, catalogo: PAIS}
+  - {nombre: COD_EVENTO, etiqueta: Código de evento RENAP, tipo: entero}
+  - {nombre: COD_PAIS_NACIMIENTO, etiqueta: País de nacimiento, tipo: codigo, catalogo: PAIS}
+  - {nombre: COD_ALDEA_NACIMIENTO, etiqueta: Código de aldea, tipo: entero}
+  - {nombre: ALDEA_NACIMIENTO, etiqueta: Aldea de nacimiento, tipo: texto}
+  - {nombre: HORA_NACIMIENTO, etiqueta: Hora de nacimiento, tipo: hora}
+  - {nombre: MES_NACIMIENTO, etiqueta: Mes en texto (valida contra FECHA_NACIMIENTO), tipo: texto}
+  - {nombre: DIA_NACIMIENTO, etiqueta: Día de la semana en texto (valida contra FECHA_NACIMIENTO), tipo: texto}
+  - {nombre: CLASE_PARTO, etiqueta: Clase de parto (eutócico/distócico), tipo: texto}
+  - {nombre: HOSPITAL_NOMBRE, etiqueta: Nombre del hospital, tipo: texto}
+
+pii: [FECHA_NACIMIENTO_MADRE]
+
+llave: [MOVIMIENTO, COD_SEDE_EVENTO, FECHA_NACIMIENTO]

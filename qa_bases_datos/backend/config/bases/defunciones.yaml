@@ -1,0 +1,136 @@
+# Defunciones — RENAP
+# Estructura: base publicada "Defunciones año 2025" (datos.ine.gob.gt)
+# Códigos:    "Diccionario defunciones 2018-2022"
+# Crudo:      "Defunciones Julio_renap_2026.xlsx" (hoja de RENAP)
+#
+# Claves de cada variable:
+#   nombre     nombre de la columna en la base publicada por el INE
+#   etiqueta   texto de la columna "Valor" del diccionario (o descripción propia)
+#   tipo       entero | decimal | texto | fecha | hora | fecha_hora | codigo | booleano
+#   catalogo   código de catálogo (catalogos.yaml) contra el que se valida
+#   rango_de   toma mínimo, máximo e "Ignorado" de esa variable del diccionario
+#   alias      nombres con que llega la columna en el crudo
+#   transformacion  cómo se calcula cuando no basta con copiar la columna
+#   pii        dato personal: no se publica nunca
+
+base: DEFUNCIONES
+version: "2025"
+vigente_desde: 2025-01-01
+fuente: "Estructura de Defunciones 2025 publicada; códigos del Diccionario defunciones 2018-2022"
+
+variables:
+  - {nombre: Depreg, etiqueta: Departamento de registro, tipo: codigo, catalogo: DEPARTAMENTO, requerida: true, alias: [DEPTO_REGISTRO]}
+  - nombre: Mupreg
+    etiqueta: Municipio de registro
+    tipo: codigo
+    catalogo: MUNICIPIO
+    requerida: true
+    regex: '^\d{4}$'
+    alias: [MUNIC_REGISTRO]
+    transformacion: {tipo: municipio_compuesto, depto: DEPTO_REGISTRO, munic: MUNIC_REGISTRO}
+  - {nombre: Mesreg, etiqueta: Mes de registro, tipo: codigo, catalogo: MES, requerida: true, alias: [MES_REGISTRO]}
+  - {nombre: Añoreg, etiqueta: Año de registro, tipo: entero, requerida: true, min: 1900, max: 2100, alias: [ANIO_REGISTRO, AÑO_REGISTRO]}
+  - {nombre: Depocu, etiqueta: Departamento de ocurrencia, tipo: codigo, catalogo: DEPARTAMENTO, requerida: true, alias: [DEPTO_DEFUNCION, DEPTO_OCURRENCIA]}
+  - nombre: Mupocu
+    etiqueta: Municipio de ocurrencia
+    tipo: codigo
+    catalogo: MUNICIPIO
+    requerida: true
+    regex: '^\d{4}$'
+    alias: [MUNIC_DEFUNCION, MUNIC_OCURRENCIA]
+    transformacion: {tipo: municipio_compuesto, depto: DEPTO_DEFUNCION, munic: MUNIC_DEFUNCION}
+  - {nombre: Sexo, etiqueta: Sexo del difunto(a), tipo: codigo, catalogo: SEXO, requerida: true, alias: [SEXO]}
+  - {nombre: Diaocu, etiqueta: Día de ocurrencia, tipo: entero, requerida: true, min: 1, max: 31, alias: [DIA_OCURRENCIA]}
+  - {nombre: Mesocu, etiqueta: Mes de ocurrencia, tipo: codigo, catalogo: MES, requerida: true, alias: [MES_OCURRENCIA]}
+  - {nombre: Añoocu, etiqueta: Año ocurrencia, tipo: entero, requerida: true, min: 1900, max: 2100, alias: [ANIO_OCURRENCIA, AÑO_OCURRENCIA]}
+  - {nombre: Edadif, etiqueta: Edad del difunto(a), tipo: entero, rango_de: [dicc_defunciones, Edad del difunto(a)], alias: [EDAD]}
+  - {nombre: Perdif, etiqueta: Periodo de edad del difunto(a), tipo: codigo, catalogo: DEF_PERIODO_EDAD, alias: [PERIODO_EDAD]}
+  - {nombre: Puedif, etiqueta: Pueblo de pertenencia del difunto(a), tipo: codigo, catalogo: PUEBLO, alias: [GRUPO_ETNICO, PUEBLO]}
+  - {nombre: Ecidif, etiqueta: Estado civil del difunto(a), tipo: codigo, catalogo: ESTADO_CIVIL, alias: [ESTADO_CONYUGAL, ESTADO_CIVIL]}
+  - {nombre: Escodif, etiqueta: Escolaridad del difunto(a), tipo: codigo, catalogo: ESCOLARIDAD, alias: [ESCOLARIDAD]}
+  - {nombre: Pnadif, etiqueta: Pais de nacimiento del difunto(a), tipo: codigo, catalogo: PAIS, alias: [PAIS_NACIMIENTO]}
+  - {nombre: Dnadif, etiqueta: Departamento de nacimiento del difunto(a), tipo: codigo, catalogo: DEPARTAMENTO, alias: [DEPTO_NACIMIENTO]}
+  - nombre: Mnadif
+    etiqueta: Municipio de nacimiento del difunto(a)
+    tipo: codigo
+    catalogo: MUNICIPIO
+    regex: '^\d{4}$'
+    alias: [MUNIC_NACIMIENTO]
+    transformacion: {tipo: municipio_compuesto, depto: DEPTO_NACIMIENTO, munic: MUNIC_NACIMIENTO}
+  - {nombre: Nacdif, etiqueta: Nacionalidad del difunto(a), tipo: codigo, catalogo: PAIS, alias: [NACIONALIDAD]}
+  - {nombre: Predif, etiqueta: Pais de residencia del difunto(a), tipo: codigo, catalogo: PAIS, alias: [PAIS_RESIDENCIA]}
+  - {nombre: Dredif, etiqueta: Departamento de residencia del difunto(a), tipo: codigo, catalogo: DEPARTAMENTO, alias: [DEPTO_RESIDENCIA]}
+  - nombre: MreDif
+    etiqueta: Municipio de residencia del difunto(a)
+    tipo: codigo
+    catalogo: MUNICIPIO
+    regex: '^\d{4}$'
+    alias: [MUNIC_RESIDENCIA]
+    transformacion: {tipo: municipio_compuesto, depto: DEPTO_RESIDENCIA, munic: MUNIC_RESIDENCIA}
+  - nombre: Caudef
+    etiqueta: Causa de defuncion
+    tipo: codigo
+    catalogo: CIE10
+    requerida: true
+    alias: [CAUSA_A]
+    # RENAP manda la cadena de causas en texto libre (A = directa ... D = originaria).
+    # El INE publica un solo código CIE-10. Lo propone la IA y lo aprueba un analista.
+    transformacion: {tipo: codificar_ia, catalogo: CIE10, campos: [CAUSA_A, CAUSA_B, CAUSA_C, CAUSA_D, TIPO_MUERTE]}
+  - {nombre: Asist, etiqueta: Asistencia recibida, tipo: codigo, catalogo: DEF_ASISTENCIA, alias: [TIPO_ASISTENCIA]}
+  - nombre: Ocur
+    etiqueta: Sitio de ocurrencia
+    tipo: codigo
+    catalogo: DEF_SITIO
+    alias: [SITIO_OCURRENCIA]
+    # El crudo trae el nombre del lugar ("HOSPITAL DE LA AMISTAD JAPÓN GUATEMALA", "Aldea Xesuc").
+    transformacion: {tipo: codificar_ia, catalogo: DEF_SITIO, campos: [SITIO_OCURRENCIA, LUGAR_OCURRIO_DEFUNCION]}
+  - nombre: Cerdef
+    etiqueta: Quien certifica
+    tipo: codigo
+    catalogo: DEF_CERTIFICA
+    alias: [QUIEN_CERTIFICA]
+    # El crudo trae el nombre de quien certifica ("Dra. ..."): se clasifica y el nombre no se publica.
+    transformacion: {tipo: codificar_ia, catalogo: DEF_CERTIFICA, campos: [QUIEN_CERTIFICA]}
+
+  # ---- En el diccionario 2018-2022 pero ya no en la publicación 2025 ----
+  - {nombre: Ocudif, etiqueta: Ocupación (Subgrupos CIUO-08) del difunto(a), tipo: codigo, catalogo: OCUPACION_CIUO08, publica: false, alias: [OCUPACION],
+     transformacion: {tipo: codificar_ia, catalogo: OCUPACION_CIUO08, campos: [OCUPACION]}}
+
+# Columnas del crudo que se usan para validar pero no se publican.
+auxiliares:
+  - {nombre: MOVIMIENTO, etiqueta: Número de movimiento RENAP (parte de la llave única), tipo: entero}
+  - {nombre: SEDE_EVENTO, etiqueta: Sede de RENAP donde se registró, tipo: entero}
+  - {nombre: FECHA_DEFUNCION, etiqueta: Fecha de defunción (valida día, mes y año de ocurrencia), tipo: fecha}
+  - {nombre: FECHA_NACIMIENTO, etiqueta: Fecha de nacimiento (valida la edad), tipo: fecha}
+  - {nombre: HORA_DEFUNCION, etiqueta: Hora de defunción, tipo: hora}
+  - {nombre: PAIS_REGISTRO, etiqueta: País de registro, tipo: codigo, catalogo: PAIS}
+  - {nombre: PAIS_OCURRENCIA, etiqueta: País de ocurrencia, tipo: codigo, catalogo: PAIS}
+  - {nombre: AREA_GEOGRAFICA, etiqueta: Área geográfica, tipo: texto}
+  - {nombre: TIPO_MUERTE, etiqueta: Tipo de muerte (natural, accidente, homicidio...), tipo: texto}
+  - {nombre: CAUSA_B, etiqueta: Causa B, tipo: texto}
+  - {nombre: CAUSA_C, etiqueta: Causa C, tipo: texto}
+  - {nombre: CAUSA_D, etiqueta: Causa D, tipo: texto}
+  - {nombre: LUGAR_OCURRIO_DEFUNCION, etiqueta: Lugar donde ocurrió, tipo: texto}
+  - {nombre: TIPO_ACCIDENTE, etiqueta: Tipo de accidente, tipo: texto}
+  - {nombre: HUBO_NECROPSIA, etiqueta: Hubo necropsia (S/N), tipo: texto}
+  - {nombre: HUBO_OPERACION, etiqueta: Hubo operación (S/N), tipo: texto}
+  - {nombre: EMBARAZADA_FALLECIO, etiqueta: Embarazada al fallecer, tipo: texto}
+  - {nombre: TIEMPO_A, etiqueta: Tiempo de evolución de la causa A, tipo: texto}
+  - {nombre: TIEMPO_B, etiqueta: Tiempo de evolución de la causa B, tipo: texto}
+  - {nombre: TIEMPO_C, etiqueta: Tiempo de evolución de la causa C, tipo: texto}
+  - {nombre: TIEMPO_D, etiqueta: Tiempo de evolución de la causa D, tipo: texto}
+
+# Datos personales: se eliminan del archivo corregido.
+# Los datos de madre y padre (llenos sobre todo en defunciones de menores) tampoco se publican.
+pii: [CUI, NOMBRE_FALLECIDO,
+      CUI_MADRE, NOMBRE_MADRE, DIRECCION_MADRE, FECHA_NACIMIENTO_MADRE, EDAD_MADRE_MOMENTO_DEFUNCION,
+      PAIS_NACIMIENTO_MADRE, DEPTO_NACIMIENTO_MADRE, MUNIC_NACIMIENTO_MADRE, NACIONALIDAD_MADRE, OCUPACION_MADRE,
+      ESTADO_CIVIL_MADRE, GRUPO_ETNICO_MADRE, PAIS_RESIDENCIA_MADRE, DEPTO_RESIDENCIA_MADRE, MUNIC_RESIDENCIA_MADRE,
+      ESCOLARIDAD_MADRE,
+      CUI_PADRE, NOMBRE_PADRE, DIRECCION_PADRE, FECHA_NACIMIENTO_PADRE, EDAD_PADRE_MOMENTO_DEFUNCION,
+      PAIS_NACIMIENTO_PADRE, DEPTO_NACIMIENTO_PADRE, MUNIC_NACIMIENTO_PADRE, NACIONALIDAD_PADRE, OCUPACION_PADRE,
+      ESTADO_CIVIL_PADRE, GRUPO_ETNICO_PADRE, PAIS_RESIDENCIA_PADRE, DEPTO_RESIDENCIA_PADRE, MUNIC_RESIDENCIA_PADRE,
+      ESCOLARIDAD_PADRE]
+
+# Llave única de un registro (regla de unicidad).
+llave: [MOVIMIENTO, SEDE_EVENTO, FECHA_DEFUNCION]

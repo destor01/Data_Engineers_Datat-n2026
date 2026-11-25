@@ -1,0 +1,13 @@
+# Salidas del motor: traen copias de los crudos con CUI, nombres y direcciones
+almacen/
+# Crudos, diccionarios y bases de prueba: no se suben al repositorio
+datos/
+*.xlsx
+*.xls
+*.csv
+*.zip
+# Python
+__pycache__/
+*.pyc
+.venv/
+.env

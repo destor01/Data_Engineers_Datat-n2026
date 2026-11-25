@@ -1,0 +1,79 @@
+# Detenidos — PNC
+# Estructura: base publicada "PNC detenidos 2023" (ine.gob.gt, hechos delictivos)
+# Códigos:    "Diccionario de datos de Detenidos, PNC"
+# Crudo:      "Base general de detenidos octubre_PNC_2026.xlsx"
+# Claves: ver defunciones.yaml
+#
+# El crudo de PNC trae dos columnas llamadas MUNICIPIO (ocurrencia y residencia) y dos
+# MAYOR. El lector las renombra por posición: la segunda queda como "MUNICIPIO.1".
+# El código DELITO de PNC NO es el código del INE (en PNC 47 = desobediencia, en el
+# INE 47 = Orden de captura): la causa se codifica desde el texto de MOTIVO.
+
+base: DETENIDOS
+version: "2025"
+vigente_desde: 2025-01-01
+fuente: "Estructura PNC detenidos 2023 publicada; Diccionario de datos de Detenidos, PNC"
+
+variables:
+  - {nombre: núm_corre, etiqueta: NÚMERO DE CORRELATIVO, tipo: entero, requerida: true, alias: ["NO.", "NO", NUMERO]}
+  - {nombre: año_ocu, etiqueta: AÑO DE OCURRENCIA, tipo: entero, requerida: true, min: 1900, max: 2100, alias: [],
+     transformacion: {tipo: parte_fecha, campo: FECHA, parte: anio}}
+  - {nombre: mes_ocu, etiqueta: MES DE OCURRENCIA, tipo: codigo, catalogo: MES, requerida: true, alias: [MES]}
+  - {nombre: día_ocu, etiqueta: Día del mes, tipo: entero, requerida: true, min: 1, max: 31, alias: [],
+     transformacion: {tipo: parte_fecha, campo: FECHA, parte: dia}}
+  - {nombre: día_sem_ocu, etiqueta: DIA DE OCURRENCIA, tipo: codigo, catalogo: PNC_DIA_SEMANA, alias: [DIA]}
+  - {nombre: hora_ocu, etiqueta: HORA DE OCURRENCIA, tipo: entero, min: 0, max: 23, ignorado: "99", alias: [HORA],
+     transformacion: {tipo: parte_hora, campo: HORA}}
+  - {nombre: g_hora, etiqueta: GRUPO DE CADA 6 HORAS, tipo: codigo, catalogo: PNC_GRUPO_HORA_6, alias: [],
+     transformacion: {tipo: agrupar_hora, campo: HORA, cortes: [0, 6, 12, 18, 24]}}
+  - {nombre: g_hora_mañ.tar.noch, etiqueta: "GRUPO DE HORA MAÑANA,TARDE Y NOCHE", tipo: codigo, catalogo: PNC_GRUPO_HORA_3, alias: [],
+     transformacion: {tipo: agrupar_hora, campo: HORA, cortes: [0, 12, 18, 24]}}
+  - {nombre: área_geo_ocu, etiqueta: Área geográfica (Urbano/Rural), tipo: texto, alias: [URBANO],
+     transformacion: {tipo: mapa, campo: URBANO, valores: {SI: Urbano, NO: Rural}}}
+  - {nombre: depto_ocu, etiqueta: DEPARTAMENTO DE OCURRENCIA, tipo: codigo, catalogo: DEPARTAMENTO, requerida: true, alias: [],
+     transformacion: {tipo: depto_de_municipio, campo: MUNICIPIO}}
+  - {nombre: mupio_ocu, etiqueta: MUNICIPIO DE OCURRENCIA, tipo: codigo, catalogo: MUNICIPIO, requerida: true, regex: '^\d{4}$', alias: [MUNICIPIO],
+     transformacion: {tipo: rellenar_ceros, campo: MUNICIPIO, largo: 4}}
+  - {nombre: zona_ocu, etiqueta: ZONA DE OCURRENCIA, tipo: entero, min: 0, max: 25, ignorado: "99", alias: [ZONA]}
+  - {nombre: sexo_per, etiqueta: SEXO, tipo: codigo, catalogo: SEXO, requerida: true, alias: [SEXO]}
+  - {nombre: edad_per, etiqueta: EDAD SIMPLE, tipo: entero, min: 0, max: 110, ignorado: "999", alias: [EDAD]}
+  - {nombre: g_edad_60ymás, etiqueta: GRUPO DE EDAD QUINQUENAL (MENOR 15 HASTA 60 Y MÁS), tipo: codigo, catalogo: PNC_GRUPO_EDAD_60, alias: [],
+     transformacion: {tipo: agrupar_edad, campo: EDAD, catalogo: PNC_GRUPO_EDAD_60}}
+  - {nombre: g_edad_80ymás, etiqueta: GRUPO DE EDAD QUINQUENAL (MENOR 15 HASTA 80 Y MÁS), tipo: codigo, catalogo: PNC_GRUPO_EDAD_80, alias: [],
+     transformacion: {tipo: agrupar_edad, campo: EDAD, catalogo: PNC_GRUPO_EDAD_80}}
+  - {nombre: edad_quinquenales, etiqueta: EDADES QUINQUENALES (A PARTIR DE 0 HASTA 80 Y MÁS), tipo: codigo, catalogo: PNC_EDAD_QUINQUENAL, alias: [],
+     transformacion: {tipo: agrupar_edad, campo: EDAD, catalogo: PNC_EDAD_QUINQUENAL}}
+  - {nombre: delito_com, etiqueta: CAUSA COMETIDA, tipo: codigo, catalogo: PNC_CAUSA, requerida: true, alias: [MOTIVO],
+     transformacion: {tipo: codificar_ia, catalogo: PNC_CAUSA, campos: [MOTIVO, DELITO]}}
+  - {nombre: g_delitos, etiqueta: GRUPO DE CAUSAS, tipo: codigo, catalogo: PNC_GRUPO_CAUSA, alias: [],
+     transformacion: {tipo: padre_catalogo, campo: delito_com, catalogo: PNC_CAUSA}}
+
+auxiliares:
+  - {nombre: FECHA, etiqueta: Fecha del hecho (de ahí salen año y día), tipo: fecha}
+  - {nombre: DELITO, etiqueta: Código interno de PNC (no es el del INE), tipo: entero}
+  - {nombre: MAYOR, etiqueta: MAYOR/MENOR de edad (valida contra EDAD), tipo: texto}
+  - {nombre: COMISARIAS., etiqueta: Comisaría, tipo: texto}
+  - {nombre: NACIONALIDAD, etiqueta: Nacionalidad, tipo: texto}
+  - {nombre: PROFESION, etiqueta: Profesión, tipo: texto}
+  - {nombre: MEDIO EN EL QUE SE CONDUCE, etiqueta: Medio en el que se conduce, tipo: texto}
+  - {nombre: TIPO DE VEHICULO, etiqueta: Tipo de vehículo, tipo: texto}
+  - {nombre: ESTADO NORMAL/BAJO EFECTOS DE LICOR, etiqueta: Estado normal o bajo efectos de licor, tipo: texto}
+  - {nombre: HOMBRE, etiqueta: Contador hombre (valida contra SEXO), tipo: entero}
+  - {nombre: MUJER, etiqueta: Contador mujer (valida contra SEXO), tipo: entero}
+  - {nombre: MAYOR.1, etiqueta: Contador mayor de edad, tipo: entero}
+  - {nombre: MENOR, etiqueta: Contador menor de edad, tipo: entero}
+  - {nombre: RUTA, etiqueta: Ruta, tipo: texto}
+  - {nombre: ESTADO DE SITIO, etiqueta: Estado de sitio, tipo: texto}
+  - {nombre: GRADO DE PNC, etiqueta: Grado de PNC (si el detenido es agente), tipo: texto}
+  - {nombre: LEY SECA, etiqueta: Ley seca, tipo: texto}
+  - {nombre: "REFERENCIA HECHOS DE BUSES, CAMIONES, TAXIS.", etiqueta: Referencia de hechos en transporte, tipo: texto}
+  - {nombre: EMPRESA Y RUTA PARA BUSES, etiqueta: Empresa y ruta de buses, tipo: texto}
+  - {nombre: CONATO, etiqueta: Conato, tipo: texto}
+  - {nombre: TIPO DE MERCADERIA, etiqueta: Tipo de mercadería, tipo: texto}
+  - {nombre: INCAUTADO, etiqueta: Incautado, tipo: texto}
+
+# Datos personales o de investigación: no se publican.
+pii: [CALLE/AVENIDA, COLONIAS CASERIOS BARRIOS CANTON Y ALDEAS, REFERENCIA DIRECCION, RESIDENCIA, MUNICIPIO.1, DEPARTAMENTO,
+      PERFIL, MARA, ALIAS O APODO, CICATRICES, TATUAJES, ANTECEDENTES, PLACAS, OFICIO, INFORMO, JUZGADO O FISCALIA, OBSERVACIONES]
+
+llave: ["NO."]
