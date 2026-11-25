@@ -303,8 +303,11 @@ def _codificar(ctx: Contexto, v, codificador: Codificador):
         else:
             detalle = ", ".join(f"\"{t}\"" for t in orden[:5]) + (" y otros" if len(orden) > 5 else "")
         ctx.hallazgo(regla_desc, mascara, columna=v.nombre, detalle=detalle, valores=s)
+        rechazadas = d.rechazos.get(v.nombre, set())
         for t in orden:
             sug = sugeridas.get(t)
+            if sug and (normalizar(t), str(sug.codigo)) in rechazadas:
+                continue
             if sug and (minimo is None or sug.confianza >= float(minimo)):
                 ctx.cambio(regla_desc, v.nombre, t, sug.codigo, len(desconocidos[t]), desconocidos[t][0],
                            origen="ia" if es_ia else "regla", estado="pendiente",
@@ -404,9 +407,12 @@ def _puntaje(d: DefinicionBase, hallazgos: list[dict], total: int, n_columnas: i
 
 # ---------------------------------------------------------------------------
 def procesar(ruta: str | Path, d: DefinicionBase, anio: int | None = None, mes: int | None = None,
-             codificador: Codificador | None = None) -> Resultado:
+             codificador: Codificador | None = None, progreso=None) -> Resultado:
+    """`progreso(etapa, porcentaje)` es opcional: la API lo usa para mostrar el avance."""
     t0 = time.time()
+    avisar = progreso or (lambda etapa, pct: None)
     codificador = codificador or CodificadorSimilitud()
+    avisar("Leyendo el archivo…", 10)
     lectura = leer(ruta, d.formato_crudo)
     raw = lectura.df.reset_index(drop=True)
     ctx = Contexto(d, raw, anio, mes)
@@ -435,6 +441,7 @@ def procesar(ruta: str | Path, d: DefinicionBase, anio: int | None = None, mes: 
         fuentes[var.nombre].append(c)
         usadas.append(c)
 
+    avisar("Limpiando y emparejando columnas…", 25)
     # 3. Limpieza de las columnas que alimentan la salida o las reglas (las demás no se tocan)
     relevantes = {c for v in d.publicadas() for c in fuentes.get(v.nombre, [])}
     for v in d.publicadas():
@@ -448,7 +455,9 @@ def procesar(ruta: str | Path, d: DefinicionBase, anio: int | None = None, mes: 
     _limpiar(ctx, [c for c in usadas if c in relevantes])
 
     # 4. Construir las columnas del INE
+    avisar("Calculando las columnas del INE…", 40)
     _construir(ctx, fuentes)
+    avisar("Codificando y validando valores…", 55)
 
     # 5-6. Codificar y validar cada variable publicada
     for v in d.publicadas():
@@ -456,6 +465,7 @@ def procesar(ruta: str | Path, d: DefinicionBase, anio: int | None = None, mes: 
             _codificar(ctx, v, codificador)
         _validar(ctx, v)
 
+    avisar("Aplicando reglas de la base…", 80)
     # 7. Reglas específicas y llave única
     for codigo, regla in r.items():
         if codigo in ESPECIFICAS:

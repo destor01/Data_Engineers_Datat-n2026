@@ -5,7 +5,7 @@ Plataforma de auditoría de calidad de datos para el Datatón INE Guatemala 2026
 ## Estructura
 
 ```
-qa_bases_datos/
+quality-audit/
 ├── schema.sql                  # Esquema PostgreSQL (19 tablas)
 └── backend/
     ├── config/
@@ -17,7 +17,9 @@ qa_bases_datos/
     │       ├── detenidos.yaml
     │       ├── calidad_aire.yaml
     │       └── emergencias.yaml
-    ├── qa/                     # Motor de validación
+    ├── qa/                     # Motor de validación y API
+    │   ├── api.py              # Endpoints /api/qa/... (FastAPI APIRouter)
+    │   ├── servidor.py         # App FastAPI independiente (puerto 8001)
     │   ├── cli.py              # python -m qa.cli procesar ...
     │   ├── definicion.py       # Lee de PostgreSQL la definición de una base
     │   ├── lector.py           # Abre el crudo: tabla, hojas mensuales, ancho a largo, CSV
@@ -166,6 +168,73 @@ busca dentro del departamento del registro. El codificador con IA tendrá la mis
 
 Las sugerencias de columnas `codificar_ia` se guardan en `equivalencia` sin aprobar, para
 volver a mostrarlas en la siguiente carga.
+
+## API para el front
+
+### Levantarla sola
+
+```bat
+cd qa_bases_datos
+copy .env.example .env        &REM y pon tu DATABASE_URL
+pip install -r backend\requirements.txt
+iniciar_api.bat
+```
+
+Queda en `http://localhost:8001`. En `http://localhost:8001/docs` está la documentación interactiva:
+ahí se puede probar cada endpoint, subir un archivo y ver la respuesta, sin front.
+
+### Integrarla a la app del transcriptor
+
+Cuando el equipo lo decida, se agregan estas líneas en `app/main.py`, después de crear `app`,
+y `DATABASE_URL` en el `.env` de la raíz. No cambia nada más de la app:
+
+```python
+import sys
+sys.path.insert(0, str(BASE_DIR / "qa_bases_datos" / "backend"))
+from qa.api import router as qa_router
+app.include_router(qa_router)
+```
+
+Así el front del transcriptor y el de bases de datos usan el mismo servidor y el mismo puerto.
+
+### Endpoints (`/api/qa`)
+
+| Método | Ruta | Para qué |
+| --- | --- | --- |
+| GET | `/estado` | Si hay conexión a la base de datos |
+| GET | `/bases` | Bases configuradas (para el selector al subir) |
+| GET | `/bases/{codigo}` | Columnas y reglas de una base |
+| POST | `/cargas` | Subir un archivo. Form: `file`, `base`, `anio`, `mes` (obligatorio si es mensual), `usuario` |
+| GET | `/cargas` | Historial. Filtros: `base`, `estado`, `institucion`, `limite` |
+| GET | `/cargas/{id}` | Estado, avance, puntajes y resumen. Se consulta cada segundo mientras procesa |
+| GET | `/cargas/{id}/hallazgos` | Hallazgos. Filtros: `severidad`, `dimension`, `incluir_info` |
+| GET | `/cargas/{id}/sugerencias` | Bandeja de sugerencias. `estado`: pendiente (por defecto), aplicada, rechazada, todas |
+| GET | `/cargas/{id}/excluidos` | Registros excluidos, agrupados por motivo |
+| GET | `/cargas/{id}/descargar/{rol}` | `corregido`, `bitacora` o `reporte`. El original no se descarga (trae datos personales) |
+| POST | `/cargas/{id}/reprocesar` | Volver a validar con las sugerencias ya aprobadas |
+| POST | `/cargas/{id}/aprobar` | El analista aprueba la carga. JSON: `{"usuario", "comentario"}` |
+| POST | `/cargas/{id}/rechazar` | El analista la devuelve a la institución |
+| POST | `/sugerencias/{id}/aprobar` | Aprobar. JSON: `{"usuario", "codigo"}`; `codigo` solo si se corrige la sugerencia |
+| POST | `/sugerencias/{id}/rechazar` | Rechazar. JSON: `{"usuario", "comentario"}`. No se vuelve a proponer |
+| GET | `/catalogos/{codigo}?q=` | Buscar en un catálogo (selector para corregir una sugerencia) |
+
+### Flujo del front
+
+1. `GET /bases` para el selector, luego `POST /cargas` con el archivo. Devuelve `carga_id`.
+2. `GET /cargas/{id}` cada segundo. `avance.estado` pasa por `en_cola`, `procesando` (con `etapa` y
+   `porcentaje` para la barra) y termina en `terminado` o `error`.
+3. Con `terminado`: tarjetas con `puntaje`, `puntajes` por dimensión y `hallazgos_por_severidad`;
+   tabla de `/hallazgos`; botones de descarga.
+4. Bandeja `/sugerencias`: cada fila muestra el texto, el código y la etiqueta sugeridos, la confianza
+   y cuántos registros cambian. Aprobar, corregir (con `/catalogos`) o rechazar.
+5. `POST /reprocesar` aplica lo aprobado; el puntaje y los pendientes se actualizan.
+6. El analista aprueba o rechaza la carga.
+
+Lo aprobado queda como equivalencia de la institución: la siguiente carga de esa institución ya
+viene codificada. Lo rechazado no se vuelve a sugerir.
+
+**Pendiente:** autenticación. Por ahora `usuario` es un email opcional; sin él, las acciones quedan a
+nombre del usuario del motor. Antes de producción hay que agregar login y permisos por rol.
 
 ## Resultados con los crudos reales
 
