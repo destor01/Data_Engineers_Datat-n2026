@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "template_code": "SYNTHETIC-PILOT",
+  "version": 1,
+  "status": "draft",
+  "provenance": "Demostración sintética. No representa reglas oficiales de ENCOVI.",
+  "sections": [{"id": "household", "label": "Hogar de demostración", "scope": "household"}],
+  "questions": [
+    {"id": "members", "section_id": "household", "variable_code": null, "label": "¿Cuántas personas viven en el hogar?", "type": "integer", "required": true, "constraints": {"min": 1}},
+    {"id": "improvements", "section_id": "household", "variable_code": null, "label": "¿Realizaron mejoras?", "type": "single_select", "required": true, "options": [{"code": "01", "label": "Sí"}, {"code": "02", "label": "No"}, {"code": "99", "label": "No responde"}]},
+    {"id": "description", "section_id": "household", "variable_code": null, "label": "Describa la mejora", "type": "text", "required": true, "visible_when": {"question_id": "improvements", "operator": "eq", "value": "01"}}
+  ],
+  "rules": []
+}

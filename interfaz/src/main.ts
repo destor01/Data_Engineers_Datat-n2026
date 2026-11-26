@@ -1,4 +1,6 @@
 import './styles.css';
+import './ine-theme.css';
+import { mountExtensions } from './extensions';
 import type { AudioJob, AuditResult } from './types';
 import { demo, downloadUrl } from './services/config';
 import { listBases, audit } from './services/dataApi';
@@ -25,6 +27,7 @@ function save(name: string, text: string, type = 'text/plain;charset=utf-8') {
 }
 function duration(seconds: number): string { return `${Math.floor(seconds / 60).toString().padStart(2, '0')}:${Math.floor(seconds % 60).toString().padStart(2, '0')}`; }
 
+mountExtensions();
 el('modeBadge').textContent = demo ? 'Demostración' : 'Modo API';
 el('modeBadge').classList.toggle('demo', demo);
 el('demoNotice').hidden = !demo;
@@ -32,14 +35,14 @@ if (demo) { el('audioSubmit').textContent = 'Ver ejemplo de transcripción'; el(
 let basesLoaded = false;
 function route(focus = false) {
   const hash = location.hash.slice(1);
-  const current = ['inicio', 'audio', 'datos'].includes(hash) ? hash : 'inicio';
+  const current = ['inicio', 'audio', 'datos', 'encuestas', 'mejora'].includes(hash) ? hash : 'inicio';
   document.querySelectorAll<HTMLElement>('.page').forEach(page => { page.hidden = page.id !== current; });
   document.querySelectorAll<HTMLAnchorElement>('[data-nav]').forEach(link => {
     const active = link.dataset.nav === current;
     link.classList.toggle('active', active);
     if (active) link.setAttribute('aria-current', 'page'); else link.removeAttribute('aria-current');
   });
-  document.title = `${current === 'inicio' ? 'Vista general' : current === 'audio' ? 'Audio Audit' : 'Data Audit'} · Quality Audit`;
+  document.title = `${current === 'inicio' ? 'Vista general' : current === 'audio' ? 'Audio Audit' : current === 'encuestas' ? 'Survey Audit' : current === 'mejora' ? 'Quality Improvement' : 'Data Audit'} · Quality Audit`;
   if (focus) { el(`${current}Title`).focus({ preventScroll: true }); window.scrollTo({ top: 0 }); }
   if (current === 'datos' && !basesLoaded) void loadBases();
 }

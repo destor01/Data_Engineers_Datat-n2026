@@ -1,0 +1,4 @@
+-r requirements.txt
+psycopg[binary]==3.3.9
+pypdf==7.1.1
+# Motor existente: instalar también data-audit/qa_bases_datos/backend/requirements.txt.

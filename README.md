@@ -1,5 +1,11 @@
 # Quality Audit | Datatón INE Guatemala 2026
 
+## Integración de Survey Audit y Quality Improvement
+
+Las páginas nuevas comparten la interfaz existente y el backend de `interfaz/backend`.
+Ver [conexiones API e inicio local](documentation/integration-api.md) para ejecutar la integración y conocer sus límites actuales.
+Los motores de `audio-audit` y `data-audit` se conservan sin modificaciones.
+
 **Equipo:** Data Engineers
 
 Quality Audit es un prototipo modular para apoyar la auditoría de calidad de información estadística mediante procesamiento local de entrevistas y validación de registros administrativos. Busca reducir tareas repetitivas y mejorar la trazabilidad de las decisiones de calidad, sin sustituir la revisión técnica del INE.

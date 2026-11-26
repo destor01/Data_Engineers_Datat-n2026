@@ -28,6 +28,10 @@ from qa.motor import procesar
 from qa.salidas import escribir_archivos
 
 app = FastAPI(title='Data Audit · adaptador local')
+from extensions.api import router as surveys_router
+from extensions.improvement import router as improvement_router
+app.include_router(surveys_router)
+app.include_router(improvement_router)
 STORE = ROOT / 'backend' / 'almacen'
 LOCK = threading.Lock()
 MAX_BYTES = 100 * 1024 * 1024
