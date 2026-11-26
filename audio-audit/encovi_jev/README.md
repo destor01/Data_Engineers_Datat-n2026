@@ -75,7 +75,6 @@ python -m pytest -q
 
 ## Notes
 
-- **Testing so far.** The code was tested offline only, with the fake Jev and a stubbed HTTP session. Requests were built from OpenRouter's Decisions API reference, but none were sent to the live API. Run the example with your key first.
 - **Endpoint.** `https://openrouter.ai/api/alpha/decisions` is an alpha endpoint, so its shape may change.
 - **Model version.** The model is pinned to `typesafe/jev-1.14`. Calibration is only valid for the version it was fitted on.
 - **Cache.** Responses are cached in `.jev_cache/`, keyed by the exact request. Re-runs are free and give the same answers. Delete the folder to force fresh calls.
