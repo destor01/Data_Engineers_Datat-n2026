@@ -14,12 +14,3 @@
 |---|---|---|
 | Equipo Data Engineers |pruebas@dataton.com |Dataton2026 |
 
-## Crear o cambiar una cuenta
-
-1. Supabase → Authentication → Users → **Add user → Create new user**.
-2. Escribir correo y contraseña y marcar **Auto Confirm User**.
-3. Anotarla en la tabla de arriba.
-
-Para quitar un acceso: Authentication → Users → seleccionar la cuenta → **Delete user**. Para cambiar una contraseña: seleccionar la cuenta → **Reset password** o crear una cuenta nueva.
-
-El registro público está desactivado: nadie puede crearse una cuenta desde la plataforma. Todas las cuentas tienen el mismo acceso a los módulos.
