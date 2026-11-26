@@ -1,0 +1,9 @@
+.venv/
+../.venv/
+node_modules/
+uploads/
+.jev_cache/
+.local_data/
+__pycache__/
+*.pyc
+.env
