@@ -576,7 +576,7 @@ def detalle_carga(carga_id: str) -> dict[str, Any]:
             carga["sugerencias_pendientes"] = cur.fetchone()["n"]
             cur.execute("""SELECT DISTINCT ON (rol) rol, nombre, tamano_bytes, creado_en FROM archivo
                            WHERE carga_id = %s ORDER BY rol, creado_en DESC""", (carga_id,))
-            carga["archivos"] = [a for a in cur.fetchall() if a["rol"] in DESCARGABLES]
+            carga["archivos"] = [a for a in cur.fetchall() if a["rol"] in DESCARGABLES | {"original"}]
     with progreso_lock:
         p = dict(progreso.get(carga_id) or {})
     if p:
@@ -655,8 +655,14 @@ def excluidos(carga_id: str) -> list[dict[str, Any]]:
 @router.get("/cargas/{carga_id}/descargar/{rol}", response_model=None)
 def descargar(carga_id: str, rol: str) -> FileResponse | JSONResponse:
     """Archivo local: lo entrega directo. En Supabase Storage: {"url": ...} firmada por 5 minutos."""
-    if rol not in DESCARGABLES:
-        raise HTTPException(status_code=400, detail="Solo se pueden descargar: corregido, bitacora o reporte.")
+    if rol not in DESCARGABLES and rol != "original":
+        raise HTTPException(status_code=400, detail="Solo se pueden descargar: original, corregido, bitacora o reporte.")
+    if rol == "original":
+        # El original trae datos personales: la plataforma exige sesión (middleware) y la descarga queda en la bitácora.
+        with _conectar() as con, con.cursor() as cur:
+            cur.execute("""INSERT INTO evento_auditoria (usuario_id, accion, entidad, entidad_id)
+                           VALUES (%s, 'descargar_original', 'carga', %s)""", (_usuario_id(cur, None), carga_id))
+            con.commit()
     a = _ultimo_archivo(carga_id, rol)
     periodo = f"{a['periodo_anio']}" + (f"_{a['periodo_mes']:02d}" if a["periodo_mes"] else "")
     nombre = f"{a['base'].lower()}_{periodo}_{rol}{Path(a['ruta']).suffix}"
@@ -857,3 +863,53 @@ def buscar_en_catalogo(codigo: str, q: str | None = None, limite: int = Query(20
         filas = [f for f in filas if f["codigo"].upper().startswith(n) or n in normalizar(f["etiqueta"])]
         filas.sort(key=lambda f: (not f["codigo"].upper().startswith(n), len(f["etiqueta"])))
     return filas[:limite]
+
+
+# ---------------------------------------------------------------------------
+# Correcciones guardadas (equivalencias aprobadas por institución)
+# ---------------------------------------------------------------------------
+@router.get("/equivalencias")
+def listar_equivalencias(institucion: str | None = None, catalogo: str | None = None, q: str | None = None,
+                         limite: int = Query(200, le=1000)) -> list[dict[str, Any]]:
+    """Correcciones aprobadas: cada texto de origen con el código que se le asignó. Desde la siguiente
+    validación, ese texto se corrige solo para la institución."""
+    filtros, params = ["e.aprobada"], []
+    if institucion:
+        filtros.append("i.siglas = %s")
+        params.append(institucion.upper())
+    if catalogo:
+        filtros.append("c.codigo = %s")
+        params.append(catalogo.upper())
+    with _conectar() as con, con.cursor() as cur:
+        cur.execute(f"""SELECT e.id, coalesce(i.siglas, 'TODAS') AS institucion, c.codigo AS catalogo, c.nombre AS nombre_catalogo,
+                               e.texto_origen, e.codigo, cv.etiqueta, e.fuente::text AS fuente, e.veces_usada, e.creado_en,
+                               u.email AS aprobada_por
+                        FROM equivalencia e JOIN catalogo c ON c.id = e.catalogo_id
+                        LEFT JOIN institucion i ON i.id = e.institucion_id
+                        LEFT JOIN catalogo_valor cv ON cv.catalogo_id = c.id AND cv.codigo = e.codigo
+                        LEFT JOIN usuario u ON u.id = e.aprobada_por
+                        WHERE {' AND '.join(filtros)} ORDER BY e.creado_en DESC LIMIT %s""", (*params, limite))
+        filas = cur.fetchall()
+    if q:
+        n = normalizar(q)
+        filas = [f for f in filas if n in normalizar(f["texto_origen"]) or n in normalizar(f["etiqueta"] or "") or f["codigo"].upper().startswith(n)]
+    return filas
+
+
+@router.delete("/equivalencias/{equivalencia_id}")
+def quitar_equivalencia(equivalencia_id: int) -> dict[str, Any]:
+    """Deja de aplicar una corrección guardada. Las bases ya validadas no cambian hasta reprocesarlas."""
+    with _conectar() as con, con.cursor() as cur:
+        cur.execute("""SELECT e.texto_origen, e.codigo, c.codigo AS catalogo FROM equivalencia e
+                       JOIN catalogo c ON c.id = e.catalogo_id WHERE e.id = %s""", (equivalencia_id,))
+        e = cur.fetchone()
+        if not e:
+            raise HTTPException(status_code=404, detail="La corrección guardada no existe.")
+        usuario_id = _usuario_id(cur, None)
+        cur.execute("UPDATE correccion SET equivalencia_id = NULL WHERE equivalencia_id = %s", (equivalencia_id,))
+        cur.execute("DELETE FROM equivalencia WHERE id = %s", (equivalencia_id,))
+        cur.execute("""INSERT INTO evento_auditoria (usuario_id, accion, entidad, entidad_id, detalle)
+                       VALUES (%s, 'quitar_equivalencia', 'equivalencia', %s, %s)""",
+                    (usuario_id, str(equivalencia_id), json.dumps(e, ensure_ascii=False, default=str)))
+        con.commit()
+    return {"id": equivalencia_id, "eliminada": True}

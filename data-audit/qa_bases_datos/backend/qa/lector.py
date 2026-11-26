@@ -127,8 +127,26 @@ def _ancho_a_largo(crudo: pd.DataFrame, fmt: dict, hoja: str) -> pd.DataFrame:
     return largo
 
 
+def _fila_encabezado(crudo: pd.DataFrame, configurada: int, conocidos: set[str] | None) -> int:
+    """Fila del encabezado. Se usa la configurada, salvo que otra de las primeras filas tenga
+    claramente más nombres de columna de la base (p. ej. un CSV con el encabezado en la fila 1
+    cuando la institución suele enviar un Excel con títulos encima)."""
+    if not conocidos or crudo.empty:
+        return configurada
+
+    def puntaje(i: int) -> int:
+        if not 0 <= i < crudo.shape[0]:
+            return -1
+        return len({normalizar(v) for v in crudo.iloc[i] if not _vacio(v)} & conocidos)
+
+    candidatas = range(min(25, crudo.shape[0]))
+    mejor = max(candidatas, key=lambda i: (puntaje(i), -i))
+    return mejor if puntaje(mejor) >= 2 and puntaje(mejor) > puntaje(configurada) else configurada
+
+
 # ---------------------------------------------------------------------------
-def leer(ruta: str | Path, formato: dict | None = None) -> Lectura:
+def leer(ruta: str | Path, formato: dict | None = None, conocidos: set[str] | None = None) -> Lectura:
+    """`conocidos`: nombres normalizados de las columnas de la base (y sus alias), para ubicar el encabezado."""
     ruta = Path(ruta)
     fmt = formato or {}
     tipo = fmt.get("tipo", "tabla")
@@ -136,7 +154,7 @@ def leer(ruta: str | Path, formato: dict | None = None) -> Lectura:
 
     if ruta.suffix.lower() in (".csv", ".txt"):
         crudo = _leer_csv(ruta)
-        df, ev = _tabla(crudo, fila_enc, ruta.name)
+        df, ev = _tabla(crudo, _fila_encabezado(crudo, fila_enc, conocidos), ruta.name)
         return Lectura(df, ev, [{"nombre": ruta.name, "filas": len(df), "columnas": df.shape[1] - 2}])
 
     libro = pd.ExcelFile(ruta, engine="calamine")
@@ -154,7 +172,7 @@ def leer(ruta: str | Path, formato: dict | None = None) -> Lectura:
             crudo = _leer_hoja_cruda(ruta, hoja)
             if crudo.empty:
                 continue
-            df, ev = _tabla(crudo, fila_enc, hoja)
+            df, ev = _tabla(crudo, _fila_encabezado(crudo, fila_enc, conocidos), hoja)
             eventos += ev
             hojas.append({"nombre": hoja, "filas": len(df), "columnas": df.shape[1] - 2})
             cols = [normalizar(c) for c in df.columns if not c.startswith("_")]
@@ -172,7 +190,7 @@ def leer(ruta: str | Path, formato: dict | None = None) -> Lectura:
     hoja = fmt.get("hoja", 0)
     hoja = nombres_hojas[hoja] if isinstance(hoja, int) else hoja
     crudo = _leer_hoja_cruda(ruta, hoja)
-    df, ev = _tabla(crudo, fila_enc, hoja)
+    df, ev = _tabla(crudo, _fila_encabezado(crudo, fila_enc, conocidos), hoja)
     hojas = [{"nombre": h, "filas": None, "columnas": None} for h in nombres_hojas]
     for h in hojas:
         if h["nombre"] == hoja:

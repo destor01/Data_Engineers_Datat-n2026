@@ -2,9 +2,10 @@ import './styles.css';
 import './ine-theme.css';
 import { mountExtensions } from './extensions';
 import { mountAudio } from './audio';
+import { mountDatos } from './datos';
 import type { AudioJob, AuditResult } from './types';
 import { demo } from './services/config';
-import { listBases, audit, download } from './services/dataApi';
+import { listBases, audit } from './services/dataApi';
 import { transcribe } from './services/audioApi';
 import { message, setUnauthorizedHandler } from './services/http';
 import { currentSession, loginEnabled, onSessionChange, signIn, signOut } from './services/auth';
@@ -30,6 +31,7 @@ function save(name: string, text: string, type = 'text/plain;charset=utf-8') {
 
 mountExtensions();
 const audioModulo = demo ? null : mountAudio();
+const datosModulo = demo ? null : mountDatos();
 el('modeBadge').textContent = demo ? 'Demostración' : loginEnabled ? 'Conectado' : 'Modo API · local';
 el('modeBadge').classList.toggle('demo', demo);
 el('demoNotice').hidden = !demo;
@@ -83,7 +85,6 @@ for (const kind of ['audio', 'data'] as const) {
     const file = el<HTMLInputElement>(`${kind}File`).files?.[0];
     const size = file ? file.size < 1024 * 1024 ? `${(file.size / 1024).toLocaleString('es-GT', { maximumFractionDigits: 2 })} KB` : `${(file.size / 1024 / 1024).toLocaleString('es-GT', { maximumFractionDigits: 2 })} MB` : '';
     el(`${kind}FileInfo`).textContent = file ? `${file.name} · ${size}` : 'Ningún archivo seleccionado.';
-    el(`${kind}Result`).hidden = true;
     status(`${kind}Status`, '');
   });
 }
@@ -135,60 +136,26 @@ el('audioForm').addEventListener('submit', async event => {
   finally { delete controllers.audio; busy('audio', false); el('audioProgress').hidden = true; }
 });
 
-let currentReport: AuditResult | undefined;
-function renderFindings() {
-  const filter = el<HTMLSelectElement>('severity').value;
-  const findings = (currentReport?.reporte.hallazgos ?? []).filter(h => filter === 'all' || h.severidad === filter);
-  const container = el('findings'); container.replaceChildren();
-  if (!findings.length) { container.append(node('p', 'No hay hallazgos para esta selección.', 'empty')); return; }
-  const table = node('table'); const caption = node('caption', 'Observaciones del motor de calidad'); caption.className = 'sr-only';
-  const head = node('thead'); const headings = node('tr');
-  for (const label of ['Severidad', 'Descripción', 'Registros']) { const cell = node('th', label); cell.scope = 'col'; headings.append(cell); }
-  head.append(headings); const body = node('tbody');
-  findings.forEach(finding => {
-    const row = node('tr'); const severity = node('td'); severity.append(node('span', finding.severidad, `severity ${finding.severidad}`));
-    row.append(severity, node('td', finding.mensaje), node('td', finding.n?.toLocaleString('es-GT') ?? '—')); body.append(row);
-  });
-  table.append(caption, head, body); container.append(table);
-}
-el('severity').addEventListener('change', renderFindings);
 el('dataForm').addEventListener('submit', async event => {
   event.preventDefault(); if (controllers.data) return;
   try {
     const file = selectedFile('data');
     const input = { file, base: el<HTMLSelectElement>('base').value, anio: Number(el<HTMLInputElement>('year').value), mes: Number(el<HTMLSelectElement>('month').value) };
     if (!input.base) throw new Error('Selecciona la base institucional.');
-    controllers.data = new AbortController(); busy('data', true); el('dataResult').hidden = true;
+    controllers.data = new AbortController(); busy('data', true);
     status('dataStatus', demo ? 'Preparando resultados de ejemplo. No se analiza el archivo.' : 'Preparando la auditoría…');
-    currentReport = await audit(input, controllers.data.signal, text => status('dataStatus', text));
-    const r = currentReport.reporte;
-    el('reportContext').textContent = `${demo ? 'DATOS DE EJEMPLO · ' : ''}${file.name} · ${input.base} · ${input.mes}/${input.anio}`;
-    el('metrics').replaceChildren();
-    for (const [label, value] of [['Puntaje global', r.puntaje], ['Registros recibidos', r.total_registros], ['Válidos', r.registros_validos], ['Excluidos', r.registros_excluidos]] as const) {
-      const card = node('div', '', 'metric'); card.append(node('strong', value?.toLocaleString('es-GT') ?? '—'), node('span', label)); el('metrics').append(card);
+    const result: AuditResult = await audit(input, controllers.data.signal, text => status('dataStatus', text));
+    el<HTMLInputElement>('dataFile').value = ''; el('dataFileInfo').textContent = 'Ningún archivo seleccionado.';
+    if (datosModulo && result.carga_id) {
+      // El resultado queda guardado: se abre su detalle (correcciones, hallazgos, descargas) y aparece en el historial.
+      await datosModulo.refrescar();
+      await datosModulo.abrir(result.carga_id);
+      status('dataStatus', `Auditoría completada: puntaje ${result.reporte.puntaje?.toLocaleString('es-GT') ?? '—'}. Revisa abajo las correcciones sugeridas y los hallazgos.`);
+    } else {
+      status('dataStatus', `Ejemplo listo: puntaje ${result.reporte.puntaje ?? '—'} con ${result.reporte.hallazgos.length} hallazgos de demostración.`);
     }
-    el('dimensions').replaceChildren();
-    for (const [name, value] of Object.entries(r.puntajes)) {
-      const row = node('div', '', 'dimension'); const header = node('div'); header.append(node('span', name.replaceAll('_', ' ')), node('strong', value.toLocaleString('es-GT')));
-      const bar = node('progress'); bar.max = 100; bar.value = Math.min(100, Math.max(0, value)); bar.setAttribute('aria-label', name); row.append(header, bar); el('dimensions').append(row);
-    }
-    el<HTMLSelectElement>('severity').value = 'all'; renderFindings(); el('downloads').replaceChildren();
-    const labels: Record<string, string> = { corregido: 'base corregida', bitacora: 'bitácora', reporte: 'reporte JSON' };
-    for (const [name, path] of Object.entries(currentReport.descargas)) {
-      const button = node('button', `Descargar ${labels[name] ?? name}`, 'button secondary'); button.type = 'button';
-      button.addEventListener('click', async () => {
-        button.disabled = true;
-        try { await download(path); } catch (error) { status('dataStatus', message(error), true); } finally { button.disabled = false; }
-      });
-      el('downloads').append(button);
-    }
-    el('dataResult').hidden = false;
-    status('dataStatus', demo ? 'Ejemplo listo. Las cifras no corresponden al archivo seleccionado.' : 'Auditoría completada. Revisa los hallazgos y archivos disponibles.');
   } catch (error) { status('dataStatus', processingError(error), true); }
   finally { delete controllers.data; busy('data', false); }
-});
-el('downloadReport').addEventListener('click', () => {
-  if (currentReport) save(demo ? 'ejemplo-auditoria.json' : 'resumen-auditoria.json', JSON.stringify({ modo: demo ? 'demostracion' : 'api', ...currentReport.reporte }, null, 2), 'application/json');
 });
 // ---------------------------------------------------------------------------
 // Inicio de sesión (Supabase Auth). En modo demostración o local sin Supabase no se pide.

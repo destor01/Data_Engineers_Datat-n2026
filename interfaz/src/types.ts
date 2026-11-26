@@ -9,7 +9,7 @@ export interface Report {
   puntajes: Record<string, number>;
   hallazgos: Finding[];
 }
-export interface AuditResult { reporte: Report; descargas: Record<string, string> }
+export interface AuditResult { carga_id?: string; reporte: Report; descargas: Record<string, string> }
 export interface Turn { speaker: string; start: number; end: number; text: string }
 export interface AudioResult { turns: Turn[]; speakers: string[]; warning?: string }
 export interface AudioJob {

@@ -61,7 +61,7 @@ export async function audit(input: AuditRequest, signal: AbortSignal, stage: (te
     !Array.isArray(r.hallazgos) || !r.hallazgos.every(h => record(h) && ['error', 'advertencia', 'info'].includes(String(h.severidad)) && typeof h.mensaje === 'string' && (h.n === undefined || finite(h.n))) ||
     !Object.values(data.descargas).every(value => typeof value === 'string')) throw new Error('El reporte recibido no cumple el contrato de datos esperado.');
   const puntajes = Object.fromEntries(Object.entries(r.puntajes as Record<string, number | null>).filter((entry): entry is [string, number] => entry[1] !== null));
-  return { reporte: { ...(r as unknown as AuditResult['reporte']), puntajes }, descargas: data.descargas as Record<string, string> };
+  return { carga_id: id, reporte: { ...(r as unknown as AuditResult['reporte']), puntajes }, descargas: data.descargas as Record<string, string> };
 }
 
 /** Descarga un resultado: la API entrega el archivo o una URL firmada de Supabase Storage. */

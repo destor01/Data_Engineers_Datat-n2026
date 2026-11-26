@@ -124,3 +124,14 @@
 .audio-zona .transcript{max-height:560px;overflow-y:auto;padding-right:6px;border:1px solid var(--border);border-radius:10px;padding:4px 12px;margin-top:12px}
 .audio-zona .turn-heading{justify-content:flex-start}.audio-zona .turn-heading .time-button{margin-left:auto}
 .audio-zona .turn{padding:10px 0 10px 10px}
+
+/* Data Audit: historial y correcciones */
+.datos-pestanas{margin-top:28px}
+.detalle-carga{margin-top:24px}
+.detalle-carga h3{margin:26px 0 8px}
+.sugerencia{border:1px solid var(--border);border-radius:10px;padding:14px 16px;background:#fff}
+.cambio{display:grid;grid-template-columns:1fr auto 1fr;gap:14px;align-items:center;margin:10px 0}
+.cambio p{margin:4px 0 0;font-weight:600;color:#243e50;word-break:break-word}
+.cambio .flecha{font-size:22px;color:var(--muted)}
+td.puntaje{font-weight:700}
+.tabla-jev th:last-child,.tabla-jev td:last-child{text-align:left}

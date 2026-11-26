@@ -319,6 +319,13 @@ def _codificar(ctx: Contexto, v, codificador: Codificador):
                 ctx.cambio(regla_desc, v.nombre, t, sug.codigo, len(desconocidos[t]), desconocidos[t][0],
                            origen="ia" if es_ia else "regla", estado="pendiente",
                            confianza=sug.confianza, justificacion=sug.justificacion)
+            elif not es_ia and not any(texto == normalizar(t) for texto, _ in rechazadas):
+                # Sin una sugerencia confiable: igual pasa a la bandeja para que el analista elija el código.
+                ctx.cambio(regla_desc, v.nombre, t, None, len(desconocidos[t]), desconocidos[t][0],
+                           origen="regla", estado="pendiente", confianza=None,
+                           justificacion=(f"Sin sugerencia automática confiable (la más parecida: {sug.codigo}, "
+                                          f"{sug.justificacion}). Elige el código en el catálogo." if sug else
+                                          "Sin sugerencia automática. Elige el código en el catálogo."))
     ctx.out[v.nombre] = nueva
 
 
@@ -420,7 +427,8 @@ def procesar(ruta: str | Path, d: DefinicionBase, anio: int | None = None, mes: 
     avisar = progreso or (lambda etapa, pct: None)
     codificador = codificador or CodificadorSimilitud(minimo=0.8)
     avisar("Leyendo el archivo…", 10)
-    lectura = leer(ruta, d.formato_crudo)
+    conocidos = {normalizar(v.nombre) for v in d.variables} | {normalizar(a) for v in d.variables for a in v.alias}
+    lectura = leer(ruta, d.formato_crudo, conocidos)
     raw = lectura.df.reset_index(drop=True)
     ctx = Contexto(d, raw, anio, mes)
     ctx.avisar = avisar
