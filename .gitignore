@@ -5,4 +5,8 @@ __pycache__/
 uploads/
 *.log
 .jev_cache/
+.local_data/
+node_modules/
+dist/
+.vercel/
 *.md

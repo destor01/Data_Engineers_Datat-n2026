@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import copy
 import json
+import os
 import re
 import sys
 from pathlib import Path
@@ -9,7 +11,8 @@ from typing import Any, Mapping, Sequence
 BASE_DIR = Path(__file__).resolve().parent.parent
 ENCOVI_JEV_DIR = BASE_DIR / "encovi_jev"
 EXAMPLE_TRANSCRIPT_PATH = ENCOVI_JEV_DIR / "examples" / "transcript_example.json"
-DEFAULT_CACHE_DIR = BASE_DIR / ".jev_cache"
+IS_VERCEL = bool(os.environ.get("VERCEL") or os.environ.get("VERCEL_ENV"))
+DEFAULT_CACHE_DIR = Path("/tmp/.jev_cache") if IS_VERCEL else (BASE_DIR / ".jev_cache")
 
 if ENCOVI_JEV_DIR.is_dir() and str(ENCOVI_JEV_DIR) not in sys.path:
     sys.path.insert(0, str(ENCOVI_JEV_DIR))
@@ -18,8 +21,9 @@ try:
     from audit import run_audit
     from calibration import Calibrator
     from jev_client import DEFAULT_MODEL, FakeJev, JevClient, JevError
-    from rules import calibration_group, question_registry
+    from rules import Instruction, Kind, Question, Scope, Section, calibration_group, question_registry
     from rules_a1_a2 import SECTIONS
+    from scoring import InstructionResult, Outcome, section_summary
     from transcript import INTERVIEWER, OTHER, RESPONDENT, Turn, normalize_speaker
 
     JEV_IMPORT_ERROR: str | None = None
@@ -219,7 +223,6 @@ def parse_uploaded_transcript(content: bytes, filename: str) -> dict[str, Any]:
         if t["speaker"] not in speakers:
             speakers.append(t["speaker"])
 
-    # Compute approximate duration if timestamps exist
     ts_values = [
         v for t in turns for v in (t.get("start"), t.get("end")) if isinstance(v, (int, float))
     ]
@@ -248,6 +251,174 @@ def load_example_transcript() -> dict[str, Any]:
     return parsed
 
 
+# =====================================================================
+# Editable Rules Catalog & Dynamic Section Builder
+# =====================================================================
+
+def _default_instruction_map() -> dict[str, Instruction]:
+    if not is_jev_available():
+        return {}
+    return {ins.id: ins for sec in SECTIONS for ins in sec.instructions}
+
+
+def _question_to_dict(q: Question, override_q: Mapping[str, Any] | None = None) -> dict[str, Any]:
+    ov_instr = str((override_q or {}).get("instructions") or "").strip()
+    ov_crit = (override_q or {}).get("criteria") or {}
+    merged_crit = dict(q.criteria)
+    if isinstance(ov_crit, Mapping):
+        for k in list(merged_crit.keys()):
+            if k in ov_crit and str(ov_crit[k] or "").strip():
+                merged_crit[k] = str(ov_crit[k]).strip()
+
+    return {
+        "key": q.key,
+        "type": q.type,
+        "instructions": ov_instr or q.instructions,
+        "criteria": merged_crit,
+        "roles": dict(q.roles),
+        "default_instructions": q.instructions,
+        "default_criteria": dict(q.criteria),
+    }
+
+
+def serialize_rules_catalog(overrides: Mapping[str, Mapping[str, Any]] | None = None) -> list[dict[str, Any]]:
+    """Return all 51 ENCOVI A1–A2 rules with both active customized fields and original defaults."""
+    if not is_jev_available():
+        return []
+    overrides = overrides or {}
+    catalog: list[dict[str, Any]] = []
+
+    for sec in SECTIONS:
+        for ins in sec.instructions:
+            ov = overrides.get(ins.id) or {}
+            q_ovs = ov.get("questions_override") or {}
+            custom_text = str(ov.get("custom_text") or "").strip()
+            raw_weight = ov.get("weight")
+            weight = int(raw_weight) if raw_weight in (1, 2, 3) else ins.weight
+            enabled = bool(ov.get("enabled", True))
+            guidance = str(ov.get("auditor_guidance") or "").strip()
+
+            questions_serialized = [
+                _question_to_dict(q, q_ovs.get(q.key) if isinstance(q_ovs, Mapping) else None)
+                for q in ins.questions
+            ]
+
+            has_q_diff = any(
+                qs["instructions"] != qs["default_instructions"]
+                or qs["criteria"] != qs["default_criteria"]
+                for qs in questions_serialized
+            )
+            is_customized = bool(
+                ov
+                and (
+                    (custom_text and custom_text != ins.text)
+                    or weight != ins.weight
+                    or not enabled
+                    or bool(guidance)
+                    or has_q_diff
+                )
+            )
+
+            catalog.append(
+                {
+                    "id": ins.id,
+                    "section": ins.section,
+                    "section_title": sec.title,
+                    "text": custom_text or ins.text,
+                    "default_text": ins.text,
+                    "pages": ins.pages,
+                    "kind": ins.kind.value,
+                    "scope": ins.scope.value,
+                    "weight": weight,
+                    "default_weight": ins.weight,
+                    "verifiability": ins.verifiability,
+                    "note": ins.note,
+                    "enabled": enabled,
+                    "auditor_guidance": guidance,
+                    "is_customized": is_customized,
+                    "updated_at": ov.get("updated_at"),
+                    "questions": questions_serialized,
+                }
+            )
+
+    return catalog
+
+
+def build_effective_sections(
+    overrides: Mapping[str, Mapping[str, Any]] | None = None,
+) -> tuple[tuple[Section, ...], dict[str, dict[str, Any]]]:
+    """Build Section/Instruction/Question objects incorporating global rule rewrites."""
+    overrides = overrides or {}
+    catalog_by_id = {item["id"]: item for item in serialize_rules_catalog(overrides)}
+    built_sections: list[Section] = []
+
+    for sec in SECTIONS:
+        new_instructions: list[Instruction] = []
+        for ins in sec.instructions:
+            meta = catalog_by_id.get(ins.id)
+            if meta and not meta["enabled"]:
+                continue
+
+            ov = overrides.get(ins.id) or {}
+            q_ovs = ov.get("questions_override") if isinstance(ov.get("questions_override"), Mapping) else {}
+            guidance = str(ov.get("auditor_guidance") or "").strip()
+            custom_text = str(ov.get("custom_text") or "").strip() or ins.text
+            raw_w = ov.get("weight")
+            weight = int(raw_w) if raw_w in (1, 2, 3) else ins.weight
+
+            new_qs: list[Question] = []
+            for q in ins.questions:
+                q_ov = (q_ovs or {}).get(q.key) if isinstance(q_ovs, Mapping) else None
+                base_instr = str((q_ov or {}).get("instructions") or "").strip() or q.instructions
+                if guidance:
+                    eff_instr = f"{base_instr}\nCriterio adicional del auditor: {guidance}"
+                else:
+                    eff_instr = base_instr
+
+                eff_crit = dict(q.criteria)
+                if isinstance(q_ov, Mapping) and isinstance(q_ov.get("criteria"), Mapping):
+                    for ck in list(eff_crit.keys()):
+                        val = str(q_ov["criteria"].get(ck) or "").strip()
+                        if val:
+                            eff_crit[ck] = val
+
+                changed = eff_instr != q.instructions or eff_crit != dict(q.criteria)
+                eff_key = f"{ins.id.replace('-', '_')}__custom__{q.key}" if changed else q.key
+                new_qs.append(
+                    Question(
+                        key=eff_key,
+                        type=q.type,
+                        instructions=eff_instr,
+                        criteria=eff_crit,
+                        roles=dict(q.roles),
+                    )
+                )
+
+            new_instructions.append(
+                Instruction(
+                    id=ins.id,
+                    section=ins.section,
+                    text=custom_text,
+                    pages=ins.pages,
+                    kind=ins.kind,
+                    scope=ins.scope,
+                    questions=tuple(new_qs),
+                    weight=weight,
+                    verifiability=ins.verifiability,
+                    note=ins.note,
+                )
+            )
+
+        if new_instructions:
+            built_sections.append(Section(sec.id, sec.title, tuple(new_instructions)))
+
+    return tuple(built_sections), catalog_by_id
+
+
+# =====================================================================
+# Overall Summary & Human Override Recalculation
+# =====================================================================
+
 def _build_overall_summary(report: dict[str, Any]) -> dict[str, Any]:
     sections = report.get("sections") or {}
     instructions = report.get("instructions") or []
@@ -259,7 +430,8 @@ def _build_overall_summary(report: dict[str, Any]) -> dict[str, Any]:
 
     w_c = sum(float(ins.get("weight") or 1) * float(ins.get("p_followed") or 0.0) for ins in instructions)
     w_app = sum(
-        float(ins.get("weight") or 1) * (float(ins.get("p_followed") or 0.0) + float(ins.get("p_broken") or 0.0))
+        float(ins.get("weight") or 1)
+        * (float(ins.get("p_followed") or 0.0) + float(ins.get("p_broken") or 0.0))
         for ins in instructions
     )
 
@@ -269,6 +441,7 @@ def _build_overall_summary(report: dict[str, Any]) -> dict[str, Any]:
 
     high_risk_count = sum(1 for ins in instructions if float(ins.get("p_broken") or 0.0) >= 0.7)
     review_count = sum(1 for ins in instructions if 0.3 <= float(ins.get("p_broken") or 0.0) < 0.7)
+    manual_edit_count = sum(1 for ins in instructions if ins.get("manual_override"))
 
     score_ref = weighted_rate if weighted_rate is not None else rate
     if score_ref is None:
@@ -283,7 +456,16 @@ def _build_overall_summary(report: dict[str, Any]) -> dict[str, Any]:
     all_risks: list[dict[str, Any]] = []
     for sid, sec in sections.items():
         for risk in sec.get("top_risks") or []:
-            all_risks.append({**risk, "section": sid, "section_title": sec.get("title", sid)})
+            matching_ins = next((i for i in instructions if i.get("id") == risk.get("id")), None)
+            all_risks.append(
+                {
+                    **risk,
+                    "section": sid,
+                    "section_title": sec.get("title", sid),
+                    "manual_override": matching_ins.get("manual_override") if matching_ins else None,
+                    "is_rule_customized": bool(matching_ins.get("is_rule_customized")) if matching_ins else False,
+                }
+            )
     all_risks.sort(key=lambda r: -float(r.get("p_broken") or 0.0))
 
     return {
@@ -295,9 +477,157 @@ def _build_overall_summary(report: dict[str, Any]) -> dict[str, Any]:
         "coverage": coverage,
         "high_risk_count": high_risk_count,
         "review_count": review_count,
+        "manual_edit_count": manual_edit_count,
         "verdict": verdict,
         "top_risks": all_risks[:10],
     }
+
+
+def apply_instruction_override(
+    evaluation: Mapping[str, Any],
+    *,
+    rule_id: str,
+    override_status: str,
+    custom_probs: Mapping[str, float] | None = None,
+    auditor_comment: str | None = None,
+    new_weight: int | None = None,
+    new_text: str | None = None,
+    is_rule_customized: bool | None = None,
+    auditor_guidance: str | None = None,
+) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
+    """Apply or reset a human override on one instruction in an existing JEV evaluation and recompute all KPIs."""
+    if not is_jev_available():
+        raise RuntimeError("El motor encovi_jev no está disponible.")
+
+    report = copy.deepcopy(dict(evaluation))
+    instructions: list[dict[str, Any]] = list(report.get("instructions") or [])
+    target = next((ins for ins in instructions if ins.get("id") == rule_id), None)
+    if target is None:
+        raise ValueError(f"No se encontró la regla '{rule_id}' en esta evaluación.")
+
+    prev_outcome = {
+        "p_followed": float(target.get("p_followed") or 0.0),
+        "p_broken": float(target.get("p_broken") or 0.0),
+        "p_unknown": float(target.get("p_unknown") or 0.0),
+    }
+
+    if "original_outcome" not in target:
+        target["original_outcome"] = dict(prev_outcome)
+
+    status_clean = override_status.strip().lower()
+    if status_clean == "followed":
+        out = Outcome.make(1.0, 0.0, 0.0)
+    elif status_clean == "broken":
+        out = Outcome.make(0.0, 1.0, 0.0)
+    elif status_clean == "unknown":
+        out = Outcome.make(0.0, 0.0, 1.0)
+    elif status_clean == "custom":
+        cp = custom_probs or {}
+        out = Outcome.make(
+            float(cp.get("p_followed", prev_outcome["p_followed"])),
+            float(cp.get("p_broken", prev_outcome["p_broken"])),
+            float(cp.get("p_unknown", prev_outcome["p_unknown"])),
+        )
+    elif status_clean == "reset":
+        orig = target.get("original_outcome") or prev_outcome
+        out = Outcome.make(
+            float(orig.get("p_followed") or 0.0),
+            float(orig.get("p_broken") or 0.0),
+            float(orig.get("p_unknown") or 0.0),
+        )
+    elif status_clean == "keep":
+        out = Outcome.make(
+            prev_outcome["p_followed"],
+            prev_outcome["p_broken"],
+            prev_outcome["p_unknown"],
+        )
+    else:
+        raise ValueError(
+            f"Estado de corrección inválido: '{override_status}'. Usa followed, broken, unknown, custom, keep o reset."
+        )
+
+    target["p_followed"] = round(out.followed, 4)
+    target["p_broken"] = round(out.broken, 4)
+    target["p_unknown"] = round(out.unknown, 4)
+    f_if_app = out.followed_if_applicable()
+    target["p_followed_if_applicable"] = round(f_if_app, 4) if f_if_app is not None else None
+
+    if new_weight in (1, 2, 3):
+        target["weight"] = int(new_weight)
+    if new_text and new_text.strip():
+        target["text"] = new_text.strip()
+    if is_rule_customized is not None:
+        target["is_rule_customized"] = bool(is_rule_customized)
+    if auditor_guidance is not None:
+        target["auditor_guidance"] = auditor_guidance.strip()
+
+    comment_clean = (auditor_comment or "").strip()
+    if status_clean == "reset":
+        target.pop("manual_override", None)
+    elif status_clean != "keep" or comment_clean:
+        existing_mo = target.get("manual_override") or {}
+        eff_status = status_clean if status_clean != "keep" else existing_mo.get("status", "custom")
+        target["manual_override"] = {
+            "status": eff_status,
+            "comment": comment_clean if auditor_comment is not None else existing_mo.get("comment", ""),
+        }
+
+    # Recompute exact section summaries using encovi_jev/scoring.py
+    default_map = _default_instruction_map()
+    window_times: dict[int, Any] = {}
+    for w_info in report.get("windows") or []:
+        if isinstance(w_info, Mapping) and "window" in w_info:
+            window_times[int(w_info["window"])] = w_info.get("time")
+
+    sections_dict = report.get("sections") or {}
+    new_sections: dict[str, Any] = {}
+    for sec in SECTIONS:
+        sec_ins_dicts = [i for i in instructions if i.get("section") == sec.id]
+        if not sec_ins_dicts:
+            continue
+        sec_results: list[InstructionResult] = []
+        for item in sec_ins_dicts:
+            base_ins = default_map.get(str(item.get("id")))
+            if base_ins is None:
+                continue
+            w_val = int(item.get("weight") or base_ins.weight)
+            w_val = w_val if w_val in (1, 2, 3) else base_ins.weight
+            eff_ins = Instruction(
+                id=base_ins.id,
+                section=base_ins.section,
+                text=str(item.get("text") or base_ins.text),
+                pages=base_ins.pages,
+                kind=base_ins.kind,
+                scope=base_ins.scope,
+                questions=base_ins.questions,
+                weight=w_val,
+                verifiability=base_ins.verifiability,
+                note=base_ins.note,
+            )
+            item_out = Outcome.make(
+                float(item.get("p_followed") or 0.0),
+                float(item.get("p_broken") or 0.0),
+                float(item.get("p_unknown") or 0.0),
+            )
+            per_w: list[tuple[int, Outcome]] = []
+            ww = item.get("worst_window")
+            if isinstance(ww, Mapping) and ww.get("window") is not None:
+                per_w.append((int(ww["window"]), item_out))
+            sec_results.append(InstructionResult(eff_ins, item_out, per_w))
+
+        sec_title = (sections_dict.get(sec.id) or {}).get("title") or sec.title
+        new_sections[sec.id] = section_summary(sec_results, sec_title, window_times)
+
+    report["instructions"] = instructions
+    report["sections"] = new_sections
+    report["overall"] = _build_overall_summary(report)
+
+    new_outcome = {
+        "p_followed": target["p_followed"],
+        "p_broken": target["p_broken"],
+        "p_unknown": target["p_unknown"],
+    }
+    return report, prev_outcome, new_outcome
 
 
 def _friendly_jev_error(exc: Exception) -> str:
@@ -305,10 +635,10 @@ def _friendly_jev_error(exc: Exception) -> str:
     low = msg.lower()
     if "no api key" in low or "openrouter_api_key" in low:
         return (
-            "Falta configurar OPENROUTER_API_KEY en el archivo .env (o en el panel superior) "
+            "Falta configurar OPENROUTER_API_KEY en las variables de entorno (o en el panel superior) "
             "para llamar al modelo JEV en OpenRouter."
         )
-    if "http 401" in low or "unauthorized" in low or "invalid" in low and "key" in low:
+    if "http 401" in low or "unauthorized" in low or ("invalid" in low and "key" in low):
         return (
             "OpenRouter rechazó la clave OPENROUTER_API_KEY (HTTP 401). "
             "Verifica que la clave esté completa y activa en https://openrouter.ai/keys."
@@ -334,8 +664,9 @@ def evaluate_transcript_with_jev(
     api_key: str | None = None,
     model: str = DEFAULT_MODEL,
     cache_dir: Path | None = DEFAULT_CACHE_DIR,
+    rule_overrides: Mapping[str, Mapping[str, Any]] | None = None,
 ) -> dict[str, Any]:
-    """Run ENCOVI A1–A2 JEV evaluation on an in-memory list of turns."""
+    """Run ENCOVI A1–A2 JEV evaluation on an in-memory list of turns with custom rule overrides applied."""
     if not is_jev_available():
         raise RuntimeError(
             f"El módulo encovi_jev no está disponible en {ENCOVI_JEV_DIR}: {JEV_IMPORT_ERROR}"
@@ -370,10 +701,14 @@ def evaluate_transcript_with_jev(
             "Debes asignar al menos un hablante como ENCUESTADOR antes de evaluar la entrevista con JEV."
         )
 
+    effective_sections, catalog_by_id = build_effective_sections(rule_overrides)
+    if not effective_sections:
+        raise ValueError("Todas las reglas de evaluación están desactivadas. Activa al menos una regla.")
+
     if mock:
-        reg = question_registry(SECTIONS)
+        reg = question_registry(effective_sections)
         client = FakeJev(
-            {k: calibration_group(k, SECTIONS) for k in reg},
+            {k: calibration_group(k, effective_sections) for k in reg},
             {k: q.roles for k, q in reg.items() if q.type == "choice"},
         )
     else:
@@ -390,7 +725,7 @@ def evaluate_transcript_with_jev(
         report = run_audit(
             jev_turns,
             client,
-            SECTIONS,
+            effective_sections,
             first_contact=first_contact,
             calibrator=Calibrator(),
         )
@@ -404,5 +739,23 @@ def evaluate_transcript_with_jev(
         report["warning"] = (
             "Modo prueba sin conexión: estas probabilidades son simuladas y no reflejan una evaluación real."
         )
+
+    # Enrich instructions with rule customization metadata so the UI can display & edit them inline
+    customized_applied = 0
+    for ins_dict in report.get("instructions") or []:
+        rid = str(ins_dict.get("id") or "")
+        cat = catalog_by_id.get(rid)
+        ins_dict["original_outcome"] = {
+            "p_followed": ins_dict.get("p_followed"),
+            "p_broken": ins_dict.get("p_broken"),
+            "p_unknown": ins_dict.get("p_unknown"),
+        }
+        if cat:
+            ins_dict["is_rule_customized"] = bool(cat.get("is_customized"))
+            ins_dict["auditor_guidance"] = cat.get("auditor_guidance") or ""
+            if cat.get("is_customized"):
+                customized_applied += 1
+
+    report["customized_rules_applied"] = customized_applied
     report["overall"] = _build_overall_summary(report)
     return report

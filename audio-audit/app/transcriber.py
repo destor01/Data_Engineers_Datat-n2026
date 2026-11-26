@@ -54,11 +54,27 @@ def _configure_windows_cuda_dlls() -> None:
 
 _configure_windows_cuda_dlls()
 
-import torch  # noqa: E402
+try:
+    import torch  # type: ignore
+except ImportError:
+    torch = None  # type: ignore
+
+try:
+    import importlib.util as _importlib_util
+
+    _HAS_WHISPERX = _importlib_util.find_spec("whisperx") is not None
+except Exception:
+    _HAS_WHISPERX = False
+
+
+def is_local_whisper_available() -> bool:
+    return torch is not None and _HAS_WHISPERX
 
 
 def _configure_torch_safe_globals() -> None:
     """Allow safe checkpoint classes used by Pyannote/WhisperX under PyTorch 2.6+."""
+    if torch is None:
+        return
     add_safe_globals = getattr(torch.serialization, "add_safe_globals", None)
     if add_safe_globals is None:
         return
@@ -112,10 +128,11 @@ def _configure_torch_safe_globals() -> None:
 
 @functools.lru_cache(maxsize=1)
 def get_hardware_status() -> dict[str, Any]:
-    cuda_available = torch.cuda.is_available()
+    local_available = is_local_whisper_available()
+    cuda_available = bool(torch is not None and torch.cuda.is_available())
     gpu_name = None
     vram_gb = None
-    if cuda_available:
+    if cuda_available and torch is not None:
         try:
             gpu_name = torch.cuda.get_device_name(0)
             props = torch.cuda.get_device_properties(0)
@@ -124,6 +141,7 @@ def get_hardware_status() -> dict[str, Any]:
             gpu_name = "GPU NVIDIA"
 
     return {
+        "local_whisper_available": local_available,
         "cuda_available": cuda_available,
         "gpu_name": gpu_name,
         "vram_gb": vram_gb,
@@ -182,7 +200,7 @@ def preprocess_audio_to_wav(input_path: Path, output_wav: Path, denoise: bool = 
 
 def _free_gpu() -> None:
     gc.collect()
-    if torch.cuda.is_available():
+    if torch is not None and torch.cuda.is_available():
         torch.cuda.empty_cache()
 
 
@@ -496,6 +514,12 @@ def run_local_transcription(
     def report(stage: str, pct: float) -> None:
         if progress_cb:
             progress_cb(stage, pct)
+
+    if not is_local_whisper_available() or torch is None:
+        raise RuntimeError(
+            "WhisperX local (PyTorch/GPU) no está instalado en este entorno serverless. "
+            "Selecciona transcripción en la nube (AssemblyAI o Deepgram) para transcribir e identificar hablantes sin GPU ni HF_TOKEN."
+        )
 
     _configure_torch_safe_globals()
     import whisperx

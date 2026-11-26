@@ -1,29 +1,46 @@
-# Auditoría de Entrevistas ENCOVI — Local + JEV
+# Auditoría de Entrevistas ENCOVI — TypeScript + Python + Vercel + Supabase
 
-Aplicación web en español para:
+Aplicación web con **frontend en React + Vite + TypeScript** y **backend en Python (FastAPI)** lista para desplegarse como MVP en **Vercel + Supabase** o ejecutarse localmente.
 
-1. **Transcribir entrevistas largas en español (30 min – 2 h) 100 % local** con **WhisperX** (`large-v3-turbo` en GPU) y **Pyannote** (`Hablante 1`, `Hablante 2`, …).
-2. **Evaluar la calidad de la entrevista contra las 51 reglas ENCOVI 2023 (secciones A1 y A2)** mediante el motor `encovi_jev` y el modelo **TypeSafe JEV (`typesafe/jev-1.14`)** en OpenRouter.
-3. **Subir transcripciones ya existentes (`.json` o `.txt`)** o cargar la entrevista de ejemplo para probar la auditoría JEV en segundos.
+## Capacidades principales
 
-## Cómo ejecutarlo
+1. **Separación de hablantes (`Hablante 1`, `Hablante 2`, …) en la nube o en GPU local**:
+   - **En Vercel / sin token de Hugging Face**: soporte nativo para **AssemblyAI (`Universal-2`, ~$0.17 USD/h con diarización incluida + $50 gratis)** y **Deepgram (`Nova-3`, $200 en créditos gratis)**. Los archivos de audio largos (30 min – 2 h) se suben directo desde el navegador a **Supabase Storage** con URLs firmadas (evitando el límite de 4.5 MB de Vercel).
+   - **En equipo local con GPU**: mantiene intacto el flujo 100 % local con **WhisperX** (`large-v3-turbo`) + **Pyannote**.
+2. **Evaluación automática ENCOVI A1–A2 con JEV (`typesafe/jev-1.14` en OpenRouter)**: evalúa las 51 reglas del Manual del Encuestador ENCOVI 2023.
+3. **Edición de evaluaciones y reescritura de criterios para próximas transcripciones**:
+   - En cada una de las 51 evaluaciones (y en los principales riesgos) puedes hacer clic en **«Editar»** para:
+     1. **Corregir el dictamen de la entrevista actual** (`Cumplida`, `Incumplida`, `No aplica` o porcentaje personalizado + nota del auditor), recalculando al instante las métricas globales y por sección.
+     2. **Reescribir la regla / criterio JEV (instrucciones, opciones, peso o guía adicional del auditor)** y guardarla en **Supabase** para que se aplique automáticamente a las **próximas transcripciones**.
 
-Haz doble clic en `audio-audit\start.bat` (detecta automáticamente `.venv` o `..\.venv`) o ejecuta desde PowerShell en la raíz del repositorio:
+## Despliegue en Supabase y Vercel
+
+1. **Supabase**:
+   - Abre el **SQL Editor** en tu proyecto de Supabase y ejecuta [`supabase/schema.sql`](./supabase/schema.sql) (crea el bucket privado `audio-interviews` y las tablas `audio_audit_jobs`, `audio_audit_rule_overrides` y `audio_audit_evaluation_edits`).
+2. **Vercel**:
+   - Importa el repositorio en Vercel y configura **Root Directory** como `audio-audit`.
+   - Agrega las variables de entorno en Vercel (`Project Settings → Environment Variables`):
+     - `SUPABASE_URL`
+     - `SUPABASE_SERVICE_ROLE_KEY`
+     - `OPENROUTER_API_KEY`
+     - `ASSEMBLYAI_API_KEY` *(o `DEEPGRAM_API_KEY`)*
+   - Despliega: Vercel compilará el frontend TypeScript (`npm run build` → `dist/`) y publicará FastAPI en `/api/*` usando `api/index.py` y `requirements.txt` (ligero, sin PyTorch).
+
+## Ejecución local
 
 ```powershell
-.\.venv\Scripts\python.exe -m uvicorn app.main:app --app-dir audio-audit --host 127.0.0.1 --port 8000
+cd audio-audit
+npm install
+npm run build
+..\.venv\Scripts\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8000
 ```
 
-Luego abre http://127.0.0.1:8000 en tu navegador.
+Para desarrollo interactivo del frontend TypeScript con recarga en caliente:
 
-## Variables en `.env`
+```powershell
+# Terminal 1 (Backend Python en :8000)
+..\.venv\Scripts\python.exe -m uvicorn app.main:app --app-dir audio-audit --host 127.0.0.1 --port 8000
 
-El servidor lee automáticamente el `.env` de la raíz del repositorio y `audio-audit\.env` (sin necesidad de reiniciar al editarlo):
-
-```env
-HF_TOKEN=hf_...
-OPENROUTER_API_KEY=sk-or-...
+# Terminal 2 (Frontend Vite + TypeScript en :5173 con proxy a /api)
+cd audio-audit && npm run dev
 ```
-
-- **`HF_TOKEN`** (gratis): necesario solo la primera vez para descargar el modelo local de Pyannote (`https://huggingface.co/pyannote/speaker-diarization-community-1`). Tu audio nunca sale de tu computadora.
-- **`OPENROUTER_API_KEY`**: necesario para llamar al modelo JEV real (`typesafe/jev-1.14`, ~\$0.0004–\$0.002 USD por entrevista). También puedes activar el **Modo prueba sin conexión** en la interfaz para probar el flujo con puntajes simulados.
