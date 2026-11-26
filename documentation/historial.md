@@ -36,11 +36,6 @@ Contribuciones según los commits de la rama principal.
 | #6 | `qa-bases-datos` | API de QA de bases de datos (fusionado localmente) | Derek Tórtola |
 | #7 | `deploy-vercel-supabase` | Despliegue unificado con login | Derek Tórtola |
 
-## Línea de tiempo
-
-1. **24-nov (tarde/noche):** primera versión de Audio Audit; motor de validación y API de Data Audit; reorganización del repositorio por módulos y documentación inicial.
-2. **25-nov:** evaluación JEV; frontend común; transcripción en la nube; codificador con IA de Data Audit; integración de todo en una API; endurecimiento de seguridad; despliegue en Vercel + Supabase con login.
-3. **26-nov (madrugada):** Survey Audit desde PDF y Quality Improvement; optimización de costos (caché, lotes, Haiku); lectura por zonas de tablas grandes; reporte JEV y calibración en la interfaz; historial y bandeja de correcciones de Data Audit; documentación final.
 
 ## Commits de la rama principal
 
