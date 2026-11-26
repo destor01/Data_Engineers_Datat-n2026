@@ -1,6 +1,7 @@
 import './styles.css';
 import './ine-theme.css';
 import { mountExtensions } from './extensions';
+import { mountAudio } from './audio';
 import type { AudioJob, AuditResult } from './types';
 import { demo } from './services/config';
 import { listBases, audit, download } from './services/dataApi';
@@ -26,9 +27,9 @@ function save(name: string, text: string, type = 'text/plain;charset=utf-8') {
   const link = node('a'); link.href = url; link.download = name; link.click();
   window.setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
-function duration(seconds: number): string { return `${Math.floor(seconds / 60).toString().padStart(2, '0')}:${Math.floor(seconds % 60).toString().padStart(2, '0')}`; }
 
 mountExtensions();
+const audioModulo = demo ? null : mountAudio();
 el('modeBadge').textContent = demo ? 'Demostración' : loginEnabled ? 'Conectado' : 'Modo API · local';
 el('modeBadge').classList.toggle('demo', demo);
 el('demoNotice').hidden = !demo;
@@ -106,8 +107,6 @@ for (const kind of ['audio', 'data'] as const) el(`${kind}Cancel`).addEventListe
 window.addEventListener('beforeunload', event => { if (controllers.audio || controllers.data) { event.preventDefault(); event.returnValue = ''; } });
 
 let audioObjectUrl: string | undefined;
-let transcriptText = '';
-let lastJob: { job: AudioJob; file: string } | undefined;
 el('audioForm').addEventListener('submit', async event => {
   event.preventDefault();
   if (controllers.audio) return;
@@ -117,43 +116,23 @@ el('audioForm').addEventListener('submit', async event => {
     const [min, max = min] = speakers === 'auto' ? [] : speakers.split('-').map(Number);
     const input = { file, model: el<HTMLSelectElement>('model').value, denoise: el<HTMLInputElement>('denoise').checked,
       diarize: el<HTMLInputElement>('diarize').checked, minSpeakers: min ?? null, maxSpeakers: max ?? null };
-    controllers.audio = new AbortController(); busy('audio', true); el('audioResult').hidden = true;
+    controllers.audio = new AbortController(); busy('audio', true);
     const bar = el<HTMLProgressElement>('audioProgress'); bar.value = 0; bar.hidden = false;
     status('audioStatus', demo ? 'Preparando ejemplo. El audio no se está procesando.' : 'Enviando audio al servicio…');
-    const job = await transcribe(input, controllers.audio.signal, (job: AudioJob) => {
+    const job: AudioJob = await transcribe(input, controllers.audio.signal, (job: AudioJob) => {
       bar.value = Math.max(0, Math.min(100, job.progress)); status('audioStatus', job.stage);
     });
     if (audioObjectUrl) URL.revokeObjectURL(audioObjectUrl);
-    audioObjectUrl = URL.createObjectURL(file); el<HTMLAudioElement>('player').src = audioObjectUrl;
-    const turns = job.result?.turns ?? [];
-    const transcript = el('transcript'); transcript.replaceChildren();
-    if (!turns.length) transcript.append(node('p', 'No se detectó voz en esta grabación.', 'empty'));
-    for (const turn of turns) {
-      const article = node('article', '', 'turn');
-      const heading = node('div', '', 'turn-heading');
-      const time = node('button', `${duration(turn.start)} – ${duration(turn.end)}`, 'time-button'); time.type = 'button'; time.setAttribute('aria-label', `Reproducir desde ${duration(turn.start)}`);
-      time.addEventListener('click', () => {
-        const player = el<HTMLAudioElement>('player'); player.currentTime = Math.max(0, turn.start);
-        void player.play().catch(() => status('audioStatus', 'Usa los controles del reproductor para escuchar este archivo.', true));
-      });
-      heading.append(node('strong', turn.speaker), time); article.append(heading, node('p', turn.text)); transcript.append(article);
+    audioObjectUrl = URL.createObjectURL(file);
+    if (audioModulo) {
+      // La transcripción, los roles de hablantes y la evaluación JEV se muestran en el módulo de Audio Audit.
+      await audioModulo.abrir(job.job_id, audioObjectUrl);
+      status('audioStatus', 'Transcripción completada. Asigna los roles de los hablantes y evalúa la entrevista con JEV.');
+    } else {
+      status('audioStatus', `Ejemplo listo: ${job.result?.turns.length ?? 0} intervenciones de demostración.`);
     }
-    lastJob = { job, file: file.name };
-    transcriptText = `${demo ? 'DEMOSTRACIÓN: texto de ejemplo, no corresponde al audio seleccionado.\n\n' : ''}${turns.map(turn => `[${duration(turn.start)} - ${duration(turn.end)}] ${turn.speaker}: ${turn.text}`).join('\n\n')}`;
-    el('audioSummary').textContent = `${file.name} · ${turns.length} intervenciones${job.result?.warning ? ` · ${job.result.warning}` : ''}`;
-    el('audioResult').hidden = false;
-    status('audioStatus', demo ? 'Ejemplo listo. La grabación seleccionada no fue transcrita.' : 'Transcripción completada. Revisa el texto con el audio original.');
   } catch (error) { status('audioStatus', processingError(error), true); }
   finally { delete controllers.audio; busy('audio', false); el('audioProgress').hidden = true; }
-});
-el('downloadTranscript').addEventListener('click', () => save(demo ? 'ejemplo-transcripcion.txt' : 'transcripcion.txt', transcriptText));
-el('downloadTranscriptJson').addEventListener('click', () => {
-  if (!lastJob) return;
-  const { job, file } = lastJob;
-  // Formato que Survey Audit acepta para vincular la grabación a una entrevista.
-  const data = { fuente: 'Audio Audit', job_id: job.job_id, archivo: file, generado: new Date().toISOString(), demostracion: demo || undefined,
-    result: { speakers: job.result?.speakers ?? [], turns: job.result?.turns ?? [] } };
-  save(`${file.replace(/\.[^.]+$/, '')}-transcripcion.json`, JSON.stringify(data, null, 2), 'application/json');
 });
 
 let currentReport: AuditResult | undefined;

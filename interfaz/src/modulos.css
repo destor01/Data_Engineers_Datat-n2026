@@ -64,3 +64,63 @@
 .pdf-frame{width:100%;height:80vh;border:1px solid var(--border);border-radius:8px}
 .visor-pdf:empty{display:none}.visor-pdf{margin-top:20px}
 @media(max-width:760px){.pregunta-grid,.opcion-fila,.comparacion{grid-template-columns:1fr}.turno{grid-template-columns:1fr}}
+
+/* Audio Audit: evaluación JEV */
+.audio-panel{margin-top:24px}.audio-zona{margin-top:8px}
+.audio-extra{margin-top:24px}
+.fila-chips{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.fila-chips h2,.fila-chips h3{margin:0}
+.campos-linea{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:0 16px}
+.historial-audio{display:grid;gap:8px}
+.historial-item{display:flex;align-items:center;gap:10px;justify-content:space-between;width:100%;padding:12px 14px;border:1px solid var(--border);border-radius:8px;background:#fff;font:inherit;text-align:left;cursor:pointer}
+.historial-item:hover,.historial-item.activo{border-color:var(--ine-radiant,#315bcb);background:#f5f8ff}
+.historial-item .nombre{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600;color:#243e50}
+.puntaje{font-weight:700}
+.nivel-ok{color:#1f6a40}.nivel-warn{color:#8a6414}.nivel-bad{color:#a63543}
+.relleno.nivel-ok{background:#2e8b57}.relleno.nivel-warn{background:#d9a227}.relleno.nivel-bad{background:#c2414f}.relleno{background:#9aaab6;height:100%;border-radius:999px}
+.barra{height:8px;background:#eef2f6;border-radius:999px;overflow:hidden;margin:8px 0}
+.lanzador-jev{border:1px solid #cfdcf5;background:#f6f9ff;border-radius:12px;padding:18px 20px;margin:18px 0}
+.lanzador-jev h3{margin:0 0 4px}
+.roles-hablantes{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin:12px 0}
+.rol-hablante{background:#fff;border:1px solid var(--border);border-radius:10px;padding:12px}
+.rol-hablante select{width:100%;margin-top:6px}.rol-hablante p{font-size:12px;margin:8px 0 0}
+.turn.encuestador{border-left:3px solid var(--ine-radiant,#315bcb)}
+.turn.resaltado{background:#fff6d6;transition:background .3s}
+.turn-heading{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin:18px 0}
+.kpi{border:1px solid var(--border);border-radius:12px;padding:16px;background:#fff;display:flex;flex-direction:column;gap:4px}
+.kpi-titulo{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
+.kpi-valor{font-size:28px;line-height:1.1}
+.kpi .muted{font-size:12px}
+.secciones-jev{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px;margin-bottom:12px}
+.seccion-jev{border:1px solid var(--border);border-radius:12px;padding:16px;background:#fbfcfe}
+.seccion-jev-cabeza{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.seccion-jev h3{margin:0;font-size:16px}
+.metrica{display:flex;justify-content:space-between;gap:10px;font-size:14px;padding:4px 0;border-top:1px dashed #e3e9ef}
+.riesgos{display:grid;gap:10px}
+.riesgo{border:1px solid #f3c9cf;border-left:4px solid #c2414f;border-radius:10px;padding:12px 14px;background:#fff}
+.riesgo.revisar{border-color:#f0d99a;border-left-color:#d9a227}
+.riesgo p{margin:8px 0 0}
+.todas-evaluaciones{margin-top:22px}
+.todas-evaluaciones summary{cursor:pointer;font-weight:700;color:var(--blue);display:flex;justify-content:space-between;gap:10px;padding:10px 0}
+.tabla-scroll{overflow-x:auto}
+.tabla-jev{width:100%;border-collapse:collapse;font-size:14px}
+.tabla-jev th{text-align:left;font-size:12px;color:var(--muted);padding:10px;border-bottom:1px solid var(--border)}
+.tabla-jev td{vertical-align:top;padding:12px 10px;border-bottom:1px solid #eef2f6}
+.tabla-jev td p{margin:6px 0 0}
+.tabla-jev tr.editada{background:#f5f8ff}
+.prob{display:flex;height:10px;border-radius:999px;overflow:hidden;background:#eef2f6;min-width:160px}
+.prob-c{background:#2e8b57}.prob-i{background:#c2414f}.prob-n{background:#b8c4ce}
+.prob-numeros{display:flex;gap:10px;font-size:12px;font-weight:600}
+.nota-auditor{font-size:13px;background:#f5f8ff;border-radius:6px;padding:6px 8px}
+.modal-audio{border:0;border-radius:14px;padding:0;width:min(920px,94vw);max-height:90vh;box-shadow:0 20px 60px rgba(0,0,0,.25)}
+.modal-audio::backdrop{background:rgba(16,32,48,.45)}
+.modal-cabeza{position:sticky;top:0;background:#fff;display:flex;justify-content:space-between;align-items:center;gap:12px;padding:18px 22px;border-bottom:1px solid var(--border);z-index:1}
+.modal-cabeza h2{margin:0;font-size:20px}
+.modal-cerrar{border:0;background:none;font-size:20px;cursor:pointer;color:var(--muted);padding:4px 8px}
+.modal-cuerpo{padding:6px 22px 22px}
+.modal-cuerpo h3{margin:20px 0 6px}
+.pregunta-jev{border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin:10px 0;background:#fbfcfe}
+.audio-zona .transcript{max-height:560px;overflow-y:auto;padding-right:6px;border:1px solid var(--border);border-radius:10px;padding:4px 12px;margin-top:12px}
+.audio-zona .turn-heading{justify-content:flex-start}.audio-zona .turn-heading .time-button{margin-left:auto}
+.audio-zona .turn{padding:10px 0 10px 10px}
