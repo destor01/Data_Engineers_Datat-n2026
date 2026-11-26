@@ -156,7 +156,7 @@ catalogos:
   PNC_CAUSA:
     nombre: Causa cometida
     diccionario: [[dicc_pnc, CAUSA COMETIDA]]
-    ignorado: ["68"]
+    # 68 "Otras causas (motivo)" es una categoría real (la más grande en la publicación), no "sin dato"
     # Grupo de causas (PNC_GRUPO_CAUSA) de cada causa. Sale de la base publicada
     # PNC 2023 (delito_com -> g_delitos) y, para las que no aparecen ahí, del nombre.
     # Sin asignar, por confirmar con el INE: 16 Autosecuestro, 34 Cobro ilegal de

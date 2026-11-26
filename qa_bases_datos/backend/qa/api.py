@@ -31,6 +31,7 @@ from psycopg.rows import dict_row
 from pydantic import BaseModel
 
 from .definicion import cargar_definicion
+from .codificador_ia import crear_codificador
 from .motor import procesar
 from .salidas import escribir_archivos, guardar_en_bd, usuario_sistema
 from .texto import normalizar
@@ -103,7 +104,8 @@ def _procesar_carga(carga_id: str, base: str, ruta: Path, anio: int, mes: int | 
             cur.execute("UPDATE carga SET estado = 'procesando', actualizado_en = now() WHERE id = %s", (carga_id,))
             con.commit()
             d = cargar_definicion(cur, base)
-            r = procesar(ruta, d, anio, mes, progreso=lambda etapa, pct: _avance(carga_id, etapa=etapa, porcentaje=pct))
+            r = procesar(ruta, d, anio, mes, codificador=crear_codificador(),
+                         progreso=lambda etapa, pct: _avance(carga_id, etapa=etapa, porcentaje=pct))
             _avance(carga_id, etapa="Generando archivo corregido y bitácora…", porcentaje=90)
             rutas = escribir_archivos(d, r, ruta, ruta.parent)
             _avance(carga_id, etapa="Guardando resultados…", porcentaje=95)

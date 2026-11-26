@@ -290,8 +290,15 @@ def _codificar(ctx: Contexto, v, codificador: Codificador):
                     sug.justificacion += f", dentro de {etq_dep.etiqueta if etq_dep else padre}"
                     sugeridas[t] = sug
         else:
+            # Texto libre (codificar_ia): el codificador configurado (IA o similitud).
+            # Valor fuera de catálogo en una columna de códigos: solo similitud (errores de escritura).
+            quien = codificador if es_ia else CodificadorSimilitud()
             textos = [t for t in desconocidos if normalizar(t) not in cat.pendientes]
-            sugeridas = codificador.sugerir(cat, textos) if textos else {}
+            if es_ia and textos:
+                avisar_ia = getattr(ctx, "avisar", None)
+                if avisar_ia:
+                    avisar_ia(f"Codificando {len(textos):,} textos de {v.nombre}…", 60)
+            sugeridas = quien.sugerir(cat, textos) if textos else {}
         for t in desconocidos:
             if normalizar(t) in cat.pendientes:
                 cod, eid, conf = cat.pendientes[normalizar(t)]
@@ -411,11 +418,12 @@ def procesar(ruta: str | Path, d: DefinicionBase, anio: int | None = None, mes: 
     """`progreso(etapa, porcentaje)` es opcional: la API lo usa para mostrar el avance."""
     t0 = time.time()
     avisar = progreso or (lambda etapa, pct: None)
-    codificador = codificador or CodificadorSimilitud()
+    codificador = codificador or CodificadorSimilitud(minimo=0.8)
     avisar("Leyendo el archivo…", 10)
     lectura = leer(ruta, d.formato_crudo)
     raw = lectura.df.reset_index(drop=True)
     ctx = Contexto(d, raw, anio, mes)
+    ctx.avisar = avisar
     r = d.reglas
 
     # 1. Estructura detectada al leer

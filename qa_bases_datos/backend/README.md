@@ -24,14 +24,16 @@ quality-audit/
     │   ├── definicion.py       # Lee de PostgreSQL la definición de una base
     │   ├── lector.py           # Abre el crudo: tabla, hojas mensuales, ancho a largo, CSV
     │   ├── transformaciones.py # Las 13 recetas para calcular columnas del INE
-    │   ├── codificador.py      # Sugiere códigos (similitud de texto; aquí se enchufa la IA)
+    │   ├── codificador.py      # Sugiere códigos por similitud de texto
+    │   ├── codificador_ia.py   # Sugiere códigos con IA (Claude o un modelo local con Ollama)
     │   ├── reglas.py           # Reglas de varias columnas y llave única
     │   ├── motor.py            # Orquesta todo y calcula el puntaje
     │   ├── salidas.py          # Archivos de salida y guardado en la base de datos
     │   └── texto.py            # Normalización de texto
     ├── scripts/
     │   ├── cargar_config.py    # Diccionarios + YAML -> PostgreSQL
-    │   └── comparar_con_ine.py # Compara la salida del motor con lo publicado por el INE
+    │   ├── comparar_con_ine.py # Compara la salida del motor con lo publicado por el INE
+    │   └── probar_ia.py        # Prueba rápida del codificador con IA
     └── requirements.txt
 ```
 
@@ -159,15 +161,77 @@ Por dimensión. Error pesa 1, advertencia 0.5, informativo 0.
 
 El puntaje global es el promedio de las dimensiones que aplican a la base.
 
-### Codificador
+### Codificadores
 
-`qa/codificador.py` define la interfaz `sugerir(catalogo, textos) -> {texto: Sugerencia}`.
-Hoy usa similitud de texto (`rapidfuzz`, distancia de edición): corrige errores de escritura
-y variantes cercanas ("TENECIA DE DROGA" → 42 Tenencia de droga). Para municipios solo
-busca dentro del departamento del registro. El codificador con IA tendrá la misma firma.
+Hay dos, con la misma interfaz `sugerir(catalogo, textos) -> {texto: Sugerencia}`:
 
-Las sugerencias de columnas `codificar_ia` se guardan en `equivalencia` sin aprobar, para
-volver a mostrarlas en la siguiente carga.
+- **Similitud de texto** (`qa/codificador.py`, `rapidfuzz`): corrige errores de escritura y variantes
+  cercanas ("TENECIA DE DROGA" → 42). Se usa siempre para valores fuera de catálogo en columnas de
+  códigos, y para municipios solo busca dentro del departamento del registro.
+- **IA** (`qa/codificador_ia.py`): para el texto libre de las columnas `codificar_ia`.
+
+Toda sugerencia, de cualquiera de los dos, queda **pendiente** hasta que un analista la aprueba.
+
+## Codificador con IA
+
+Resuelve el texto libre que hoy el INE codifica a mano:
+
+| Columna | Catálogo | Ejemplo | Textos distintos (crudos reales) |
+| --- | --- | --- | ---: |
+| `delito_com` (PNC) | 61 causas | "LESIONES CULPOSAS EN HECHO DE TRANSITO" → 68 | 531 |
+| `Caudef` (defunciones) | CIE-10, 14,362 códigos | "Infarto Agudo al Miocardio" → I219 | 3,154 |
+| `Ocur` (defunciones) | 9 sitios | "HOSPITAL ROOSEVELT" → 1 Hospital público | 7,108 |
+| Ocupación (no se publica en 2025) | CIUO-08 | "AGRICULTOR" → 61 | — |
+
+### Cómo trabaja
+
+1. Lo que la similitud resuelve con 95 % o más no se manda a la IA.
+2. El resto va en lotes de 40 textos, en paralelo. Con catálogos chicos (PNC, sitio) se manda la
+   lista completa y la respuesta solo puede ser uno de esos códigos (esquema JSON con `enum`). Con
+   CIE-10 se mandan los 15 candidatos más parecidos por texto y el modelo puede usar otro código válido.
+3. La respuesta llega en JSON con esquema (structured outputs de la API de Claude): código, confianza
+   de 0 a 1 y una justificación corta. Cada código se valida contra el catálogo y los inexistentes
+   se descartan. "I10" se convierte en "I10X", como lo escribe el INE.
+4. Si un lote falla (sin red, sin clave, error), ese lote usa similitud de texto y la carga sigue.
+5. Las sugerencias quedan guardadas sin aprobar: la siguiente carga no vuelve a llamar a la IA para
+   los mismos textos.
+
+Umbral: se muestran las sugerencias de IA con confianza ≥ 0.6 (`GEN_CODIFICACION_IA.confianza_minima`).
+
+### Privacidad
+
+- Solo se envían los **textos distintos** de la columna: nunca filas, nombres, CUI ni fechas.
+- Las cadenas de 6 o más dígitos se enmascaran antes de enviar.
+- `QUIEN_CERTIFICA` no está en los catálogos permitidos porque trae nombres de médicos.
+- Con `QA_IA_PROVEEDOR=ollama` todo corre en la computadora con un modelo local, como el transcriptor.
+
+### Configuración (`qa_bases_datos/.env`)
+
+```
+QA_IA_PROVEEDOR=anthropic          # anthropic | ollama | ninguno
+ANTHROPIC_API_KEY=sk-ant-...
+QA_IA_MODELO=claude-haiku-5-5      # rápido y barato para clasificar
+```
+
+Sin clave, el sistema sigue funcionando con similitud de texto.
+
+### Probarlo
+
+```bash
+cd backend
+python -m scripts.probar_ia                                   # ejemplos de PNC, CIE-10 y sitio
+python -m scripts.probar_ia --catalogo PNC_CAUSA "AGRESION A FEMINA" "ROBO A TIENDA"
+python -m qa.cli procesar --base DETENIDOS --archivo detenidos.xlsx --anio 2026 --mes 10
+```
+
+En la primera carga de defunciones son unas 260 llamadas (3,154 causas y 7,108 sitios en lotes de
+40); en las siguientes, solo los textos nuevos.
+
+### Pendiente
+
+- CIE-10 se codifica a partir de la causa A (la que RENAP escribe primero). El INE publica la causa
+  básica, que sale de la cadena A → D; el siguiente paso es mandar la cadena completa por registro.
+- Medir la precisión contra una muestra ya codificada por el INE.
 
 ## API para el front
 
