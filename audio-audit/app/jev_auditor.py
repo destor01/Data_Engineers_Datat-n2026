@@ -135,8 +135,8 @@ def parse_uploaded_transcript(content: bytes, filename: str) -> dict[str, Any]:
     if ext == ".json":
         try:
             data = json.loads(raw_text)
-        except json.JSONDecodeError as exc:
-            raise ValueError(f"El archivo JSON no es válido: {exc}") from exc
+        except (json.JSONDecodeError, RecursionError) as exc:  # deeply nested JSON → RecursionError
+            raise ValueError(f"El archivo JSON no es válido: {type(exc).__name__}") from exc
 
         if isinstance(data, dict):
             note = data.get("nota") or data.get("note")

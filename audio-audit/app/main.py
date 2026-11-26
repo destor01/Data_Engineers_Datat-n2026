@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import base64
+import hmac
 import logging
 import os
 import re
@@ -8,11 +10,11 @@ import time
 import uuid
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
-from typing import Any
+from typing import Annotated, Any
+from urllib.parse import urlsplit
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, File, Form, HTTPException, UploadFile
-from fastapi.middleware.cors import CORSMiddleware
+from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
@@ -64,15 +66,58 @@ logger = logging.getLogger("transcriptor")
 ALLOWED_MODELS = {"medium", "large-v3-turbo", "large-v3"}
 ALLOWED_PROVIDERS = {"auto", "local_whisperx", "assemblyai", "deepgram"}
 MAX_LOCAL_UPLOAD_FOLDERS = 10
+MAX_AUDIO_BYTES = 2 * 1024**3  # ~2 h of uncompressed WAV
+MAX_TRANSCRIPT_BYTES = 5 * 1024**2  # ~80 h of transcribed speech
+LOCAL_HOSTS = {"127.0.0.1", "localhost", "::1"}
+SAFE_METHODS = {"GET", "HEAD", "OPTIONS"}
 
 app = FastAPI(title="Auditoría de Entrevistas ENCOVI — TypeScript + Python + Supabase")
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=False,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+
+
+def _hostname(value: str) -> str:
+    return (urlsplit(value if "//" in value else f"//{value}").hostname or "").lower()
+
+
+def _basic_auth_ok(header: str, password: str) -> bool:
+    scheme, _, encoded = header.partition(" ")
+    if scheme.lower() != "basic":
+        return False
+    try:
+        supplied = base64.b64decode(encoded).decode("utf-8").partition(":")[2]
+    except (ValueError, UnicodeDecodeError):
+        return False
+    return hmac.compare_digest(supplied.encode(), password.encode())
+
+
+@app.middleware("http")
+async def access_guard(request: Request, call_next):
+    """APP_PASSWORD → HTTP Basic auth on everything. Without it: localhost only, and Vercel refuses the API.
+    Cross-site writes (CSRF from any web page the auditor visits) are always rejected."""
+    password = os.environ.get("APP_PASSWORD", "").strip()
+    host = _hostname(request.headers.get("host", ""))
+    if password:
+        if not _basic_auth_ok(request.headers.get("authorization", ""), password):
+            return PlainTextResponse(
+                "Autenticación requerida.",
+                status_code=401,
+                headers={"WWW-Authenticate": 'Basic realm="Auditoria ENCOVI", charset="UTF-8"'},
+            )
+    elif IS_VERCEL:
+        if request.url.path.startswith("/api/"):
+            return PlainTextResponse(
+                "API deshabilitada: define APP_PASSWORD en Vercel → Settings → Environment Variables.",
+                status_code=503,
+            )
+    elif host not in LOCAL_HOSTS:  # blocks DNS-rebinding and LAN access without a password
+        return PlainTextResponse("Host no permitido.", status_code=403)
+
+    origin = request.headers.get("origin")
+    if request.method not in SAFE_METHODS and origin:
+        allowed = {host} | (set() if IS_VERCEL else LOCAL_HOSTS)
+        if _hostname(origin) not in allowed:
+            return PlainTextResponse("Origen no permitido.", status_code=403)
+    return await call_next(request)
+
 
 if (DIST_DIR / "assets").is_dir():
     app.mount("/assets", StaticFiles(directory=str(DIST_DIR / "assets")), name="assets")
@@ -188,23 +233,27 @@ class EvaluatePayload(BaseModel):
     mock: bool = False
 
 
+# Rule rewrites are injected into every future JEV request (30 KB cap per request), so bound them.
+ShortText = Annotated[str, Field(max_length=2000)]
+
+
 class QuestionOverrideInput(BaseModel):
-    instructions: str | None = None
-    criteria: dict[str, str] = Field(default_factory=dict)
+    instructions: ShortText | None = None
+    criteria: dict[str, ShortText] = Field(default_factory=dict, max_length=10)
 
 
 class RuleDefinitionUpdatePayload(BaseModel):
-    custom_text: str | None = None
+    custom_text: ShortText | None = None
     weight: int | None = Field(default=None, ge=1, le=3)
     enabled: bool = True
-    auditor_guidance: str | None = None
-    questions_override: dict[str, QuestionOverrideInput] = Field(default_factory=dict)
+    auditor_guidance: ShortText | None = None
+    questions_override: dict[str, QuestionOverrideInput] = Field(default_factory=dict, max_length=20)
 
 
 class EvaluationRuleEditPayload(BaseModel):
     override_status: str = "keep"  # followed | broken | unknown | custom | keep | reset
     custom_probs: dict[str, float] | None = None
-    auditor_comment: str | None = None
+    auditor_comment: ShortText | None = None
     update_future_rule: bool = False
     rule_override: RuleDefinitionUpdatePayload | None = None
 
@@ -478,6 +527,13 @@ def system_status() -> dict[str, Any]:
 
 @app.post("/api/config/keys")
 def save_api_keys(payload: ApiKeysPayload) -> dict[str, Any]:
+    if IS_VERCEL:
+        # In-memory, per-instance keys are useless on serverless, and swapping SUPABASE_URL would
+        # ship the service-role key to whatever host the caller names.
+        raise HTTPException(
+            status_code=403,
+            detail="En Vercel las claves se configuran en Settings → Environment Variables.",
+        )
     saved_to_disk = True
     updated: list[str] = []
 
@@ -492,6 +548,11 @@ def save_api_keys(payload: ApiKeysPayload) -> dict[str, Any]:
     for env_name, raw_val in mapping:
         if raw_val is not None and raw_val.strip():
             val = raw_val.strip()
+            if re.search(r"\s", val):  # a newline would inject extra lines into .env
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"El valor para {env_name} no puede contener espacios ni saltos de línea.",
+                )
             if len(val) < 8:
                 raise HTTPException(
                     status_code=400,
@@ -519,7 +580,7 @@ def save_api_keys(payload: ApiKeysPayload) -> dict[str, Any]:
 @app.post("/api/config/hf-token")
 def save_hf_token(payload: TokenPayload) -> dict[str, Any]:
     token = payload.token.strip()
-    if not token or len(token) < 10:
+    if not token or len(token) < 10 or re.search(r"\s", token):
         raise HTTPException(
             status_code=400,
             detail="El token parece incompleto. Copia el token completo desde Hugging Face.",
@@ -531,7 +592,7 @@ def save_hf_token(payload: TokenPayload) -> dict[str, Any]:
 @app.post("/api/config/openrouter-key")
 def save_openrouter_key(payload: TokenPayload) -> dict[str, Any]:
     token = payload.token.strip()
-    if not token or len(token) < 10:
+    if not token or len(token) < 10 or re.search(r"\s", token):
         raise HTTPException(
             status_code=400,
             detail="La clave parece incompleta. Copia tu clave completa de OpenRouter (sk-or-...).",
@@ -589,6 +650,16 @@ def start_cloud_transcription_from_storage(payload: CloudTranscribeRequest) -> d
                 detail="El mínimo de hablantes no puede ser mayor que el máximo.",
             )
 
+    # Only the object that /api/storage/upload-url just signed: stops reading other bucket files
+    # and overwriting other interviews' job records.
+    job_id = (payload.job_id or "").strip()
+    if not re.fullmatch(r"[0-9a-f]{12}", job_id) or not re.fullmatch(
+        rf"jobs/{job_id}/[^/]+", payload.storage_path
+    ) or ".." in payload.storage_path:
+        raise HTTPException(status_code=400, detail="job_id o storage_path no válidos.")
+    if store.get_job(job_id):
+        raise HTTPException(status_code=409, detail="Este trabajo ya existe.")
+
     try:
         signed_audio_url = store.create_signed_read_url(
             payload.storage_path,
@@ -598,7 +669,6 @@ def start_cloud_transcription_from_storage(payload: CloudTranscribeRequest) -> d
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
-    job_id = (payload.job_id or "").strip() or uuid.uuid4().hex[:12]
     safe_name = _sanitize_filename(payload.filename)
     now_ts = time.time()
 
@@ -764,6 +834,11 @@ async def create_transcription_job(
                     break
                 out.write(chunk)
                 total_bytes += len(chunk)
+                if total_bytes > MAX_AUDIO_BYTES:
+                    raise HTTPException(status_code=413, detail="El audio supera el límite de 2 GB.")
+    except HTTPException:
+        shutil.rmtree(job_dir, ignore_errors=True)
+        raise
     except Exception as exc:
         shutil.rmtree(job_dir, ignore_errors=True)
         raise HTTPException(status_code=500, detail=f"Error al guardar el archivo subido: {exc}") from exc
@@ -950,8 +1025,10 @@ async def upload_existing_transcript(file: UploadFile = File(...)) -> dict[str, 
     if not file.filename:
         raise HTTPException(status_code=400, detail="Debes seleccionar un archivo .json o .txt.")
 
-    content = await file.read()
+    content = await file.read(MAX_TRANSCRIPT_BYTES + 1)
     await file.close()
+    if len(content) > MAX_TRANSCRIPT_BYTES:
+        raise HTTPException(status_code=413, detail="La transcripción supera el límite de 5 MB.")
     if not content:
         raise HTTPException(status_code=400, detail="El archivo de transcripción está vacío.")
 

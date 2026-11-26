@@ -1,0 +1,290 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Audio Audit Review</title>
+<style>
+:root {
+  color-scheme: light;
+  --bg: #f6f6f4; --surface: #ffffff; --surface-2: #f0efec; --border: #e2e0db;
+  --text: #191919; --text-2: #5f5f5f; --text-3: #8a8a8a; --series-1: #257de0; --accent: #257de0;
+  --good: #0a8a1f; --good-bg: #e6f4e8; --bad: #c93334; --bad-bg: #fbe9e9; --info: #5f5f5f; --info-bg: #efefef;
+  --critical: #dc3c3d; --serious: #f18a59; --warning: #fbb315;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { color-scheme: dark; --bg: #111111; --surface: #191919; --surface-2: #222222; --border: #2f2f2f;
+    --text: #efefef; --text-2: #a8a8a8; --text-3: #7c7c7c; --series-1: #338ced; --accent: #338ced;
+    --good: #3ccf55; --good-bg: #13301a; --bad: #f07475; --bad-bg: #3a1a1a; --info: #b4b4b4; --info-bg: #2a2a2a; } }
+:root[data-theme="dark"] { color-scheme: dark; --bg: #111111; --surface: #191919; --surface-2: #222222; --border: #2f2f2f;
+    --text: #efefef; --text-2: #a8a8a8; --text-3: #7c7c7c; --series-1: #338ced; --accent: #338ced;
+    --good: #3ccf55; --good-bg: #13301a; --bad: #f07475; --bad-bg: #3a1a1a; --info: #b4b4b4; --info-bg: #2a2a2a; }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text);
+  font: 15px/1.55 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+main { max-width: 1040px; margin: 0 auto; padding: 32px 16px 64px; }
+h1 { font-size: 28px; line-height: 1.2; margin: 0 0 6px; letter-spacing: -0.01em; }
+h2 { font-size: 19px; margin: 44px 0 6px; }
+h3 { font-size: 15px; margin: 22px 0 8px; }
+p { margin: 0 0 10px; }
+.lede { color: var(--text-2); max-width: 760px; }
+.muted { color: var(--text-2); }
+code { font: 12.5px ui-monospace, SFMono-Regular, Consolas, monospace; background: var(--surface-2); padding: 1px 5px; border-radius: 4px; }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-top: 14px; }
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin-top: 18px; }
+.tile { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px 18px; }
+.tile .k { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--text-2); }
+.tile .v { font-size: 30px; font-weight: 650; letter-spacing: -0.02em; margin: 4px 0 2px; font-variant-numeric: tabular-nums; }
+.tile .s { font-size: 13px; color: var(--text-2); }
+.scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+th, td { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+th { font-size: 12px; font-weight: 600; color: var(--text-2); text-transform: uppercase; letter-spacing: .04em; }
+td.num, th.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+td.note { color: var(--text-2); font-size: 12.5px; min-width: 220px; }
+.evidence { color: var(--text-3); font-size: 12px; margin-top: 3px; font-family: ui-monospace, Consolas, monospace; word-break: break-word; }
+.fix { font-size: 12.5px; color: var(--text-2); margin-top: 5px; }
+.pill { display: inline-block; font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
+.pill-ok { color: var(--good); background: var(--good-bg); }
+.pill-bad { color: var(--bad); background: var(--bad-bg); }
+.pill-info { color: var(--info); background: var(--info-bg); }
+.sev { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 600; white-space: nowrap; }
+.sev::before { content: ""; width: 9px; height: 9px; border-radius: 2px; background: var(--text-3); }
+.sev-critical::before { background: var(--critical); } .sev-serious::before { background: var(--serious); }
+.sev-warning::before { background: var(--warning); }
+.chart-title { font-weight: 600; margin-bottom: 2px; }
+.bar-row { display: grid; grid-template-columns: minmax(150px, 34%) 1fr; gap: 12px; align-items: center; padding: 7px 0; outline: none; }
+.bar-label { font-size: 13px; }
+.bar-track { position: relative; height: 22px; display: flex; align-items: center; }
+.bar { height: 18px; background: var(--series-1); border-radius: 0 4px 4px 0; min-width: 2px; }
+.bar-value { margin-left: 8px; font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.tip { position: absolute; left: 0; bottom: 26px; z-index: 2; background: var(--text); color: var(--bg); font-size: 12px;
+  line-height: 1.45; padding: 7px 10px; border-radius: 6px; white-space: nowrap; pointer-events: none; opacity: 0;
+  transform: translateY(4px); transition: opacity .12s, transform .12s; }
+.bar-row:hover .tip, .bar-row:focus .tip { opacity: 1; transform: none; }
+.bar-row:hover .bar, .bar-row:focus .bar { filter: brightness(1.12); }
+.bar-row:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+.axis-note { font-size: 12px; color: var(--text-3); margin-top: 8px; }
+ul.fuzz { columns: 2 300px; padding-left: 0; list-style: none; font-size: 13px; margin: 0; }
+ul.fuzz li { break-inside: avoid; padding: 2px 0; }
+.ok { color: var(--good); font-weight: 600; font-variant-numeric: tabular-nums; } .bad { color: var(--bad); font-weight: 600; }
+.recs li { margin-bottom: 8px; }
+.callout { border-left: 3px solid var(--accent); padding: 10px 14px; background: var(--surface); border-radius: 0 8px 8px 0; margin-top: 14px; }
+footer { margin-top: 48px; font-size: 12px; color: var(--text-3); }
+@media (max-width: 560px) { .bar-row { grid-template-columns: 1fr; gap: 4px; } h1 { font-size: 23px; } }
+</style>
+</head>
+<body>
+<main>
+  <h1>Audio Audit: security, stress and the $100 question</h1>
+  <p class="lede">Every number below was measured on an isolated copy of <code>audio-audit</code> with fake keys,
+  before and after the fixes. The JEV cost is calibrated to your real OpenRouter bill.
+  Speech-to-text prices are public list prices as of Nov 2026.</p>
+
+  <div class="tiles">
+    <div class="tile"><div class="k">With $100 (cloud, cheapest)</div><div class="v">580 h</div>
+      <div class="s">of interview audio with AssemblyAI Universal-2 + JEV ≈ 290 two-hour visits</div></div>
+    <div class="tile"><div class="k">Already transcribed</div><div class="v">44k–53k h</div>
+      <div class="s">JEV-only evaluation at $0.0019–$0.0023 per audio-hour</div></div>
+    <div class="tile"><div class="k">Attacks that worked</div><div class="v">9 → 0</div>
+      <div class="s">of 10 probes, before → after the fixes (password mode)</div></div>
+    <div class="tile"><div class="k">Server errors (500)</div><div class="v">1 → 0</div>
+      <div class="s">across 22 malformed-input cases</div></div>
+  </div>
+
+  <h2>1 · How much can you audit with $100?</h2>
+  <p class="muted">An audit has two paid steps: speech-to-text with speaker separation, then the JEV rule evaluation.
+  JEV costs a fraction of a cent per hour, so the speech-to-text provider decides the answer.</p>
+
+  <div class="card">
+    <div class="chart-title">Interview-hours audited per $100</div>
+    <div class="muted" style="font-size:13px;margin-bottom:10px">Speech-to-text + JEV, using the conservative JEV rate ($0.0023/h, fast speakers). Hover or focus a bar for details.</div>
+    <div class="bar-row" tabindex="0">
+      <div class="bar-label">AssemblyAI Universal-2 + diarization</div>
+      <div class="bar-track"><div class="bar" style="width:100.0%"></div>
+        <span class="bar-value">580 h</span>
+        <div class="tip"><strong>580 interview-hours</strong><br>$0.1723 per audio-hour<br>≈ 290 two-hour ENCOVI visits</div>
+      </div></div>
+<div class="bar-row" tabindex="0">
+      <div class="bar-label">AssemblyAI Universal-3.5 Pro + diarization</div>
+      <div class="bar-track"><div class="bar" style="width:74.2%"></div>
+        <span class="bar-value">431 h</span>
+        <div class="tip"><strong>431 interview-hours</strong><br>$0.2323 per audio-hour<br>≈ 215 two-hour ENCOVI visits</div>
+      </div></div>
+<div class="bar-row" tabindex="0">
+      <div class="bar-label">Deepgram Nova-3 (diarization included)</div>
+      <div class="bar-track"><div class="bar" style="width:66.2%"></div>
+        <span class="bar-value">384 h</span>
+        <div class="tip"><strong>384 interview-hours</strong><br>$0.2603 per audio-hour<br>≈ 192 two-hour ENCOVI visits</div>
+      </div></div>
+<div class="bar-row" tabindex="0">
+      <div class="bar-label">AssemblyAI U-2 + Supabase Pro + Vercel Pro (1 month)</div>
+      <div class="bar-track"><div class="bar" style="width:55.0%"></div>
+        <span class="bar-value">319 h</span>
+        <div class="tip"><strong>319 interview-hours</strong><br>$0.1723 per audio-hour<br>after $45 hosting<br>≈ 160 two-hour ENCOVI visits</div>
+      </div></div>
+<div class="bar-row" tabindex="0">
+      <div class="bar-label">Deepgram Nova-3 if diarization is billed</div>
+      <div class="bar-track"><div class="bar" style="width:45.3%"></div>
+        <span class="bar-value">263 h</span>
+        <div class="tip"><strong>263 interview-hours</strong><br>$0.3803 per audio-hour<br>≈ 131 two-hour ENCOVI visits</div>
+      </div></div>
+    <div class="axis-note">Bars share one linear scale starting at zero. Local GPU and transcript-only runs are left out: at 17,000–52,000 h they would flatten every other bar.</div>
+  </div>
+
+  <div class="card scroll">
+    <table>
+      <thead><tr><th>Scenario</th><th class="num">Cost / audio-h</th><th class="num">Hours / $100</th>
+      <th class="num">1-h interviews</th><th class="num">2-h interviews</th><th>Notes</th></tr></thead>
+      <tbody>
+      <tr><td>AssemblyAI Universal-2 + diarization</td><td class='num'>$0.1723</td><td class='num'><strong>580</strong></td><td class='num'>580</td><td class='num'>290</td><td class='note'>$0.15/h + $0.02/h diarization. Pin <code>speech_model</code> to get this rate.</td></tr>
+<tr><td>AssemblyAI Universal-3.5 Pro + diarization</td><td class='num'>$0.2323</td><td class='num'><strong>431</strong></td><td class='num'>431</td><td class='num'>215</td><td class='note'>What you pay if the account default is the Pro model (the code doesn't pin a model).</td></tr>
+<tr><td>Deepgram Nova-3 (diarization included)</td><td class='num'>$0.2603</td><td class='num'><strong>384</strong></td><td class='num'>384</td><td class='num'>192</td><td class='note'>$0.0043/min pre-recorded, monolingual Spanish.</td></tr>
+<tr><td>AssemblyAI U-2 + Supabase Pro + Vercel Pro (1 month)</td><td class='num'>$0.1723</td><td class='num'><strong>319</strong></td><td class='num'>319</td><td class='num'>160</td><td class='note'>$45 of the $100 goes to hosting; the rest to speech-to-text.</td></tr>
+<tr><td>Deepgram Nova-3 if diarization is billed</td><td class='num'>$0.3803</td><td class='num'><strong>263</strong></td><td class='num'>263</td><td class='num'>131</td><td class='note'>Worst case: some sources list a $0.002/min diarization add-on.</td></tr>
+      <tr><td>Local GPU (RTX 3060) WhisperX + JEV</td><td class="num">≈ $0.0058</td><td class="num"><strong>≈ 17,293</strong></td>
+        <td class="num">≈ 17,293</td><td class="num">≈ 8,647</td>
+        <td class="note">Money stops being the limit; GPU time is. At an <em>estimated</em> 8–15× real time, one laptop gets through about 190–360 h of audio a day running nonstop, so spending the $100 would take two to three months. Electricity estimated at ~$0.0035/h. Throughput not measured.</td></tr>
+      <tr><td>Transcripts already exist (upload .txt/.json)</td><td class="num">$0.0019–$0.0023</td>
+        <td class="num"><strong>43,810–52,506</strong></td><td class="num">43,810+</td><td class="num">21,905+</td>
+        <td class="note">JEV only. Re-running the same transcript is free locally because of the <code>.jev_cache</code>.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Where the JEV figure comes from</h3>
+  <p class="muted">Your real run on the example interview (3.4 min) used 2 requests and 9,322 input tokens, and cost
+  <strong>$0.000392</strong>, which matches OpenRouter's listed $0.042 per million input tokens (output is free). I replayed the app's own
+  windowing (12 KB windows, 30 KB request cap) on longer synthetic interviews and scaled tokens by the measured
+  real/estimated ratio (1.10×). Example speech rate: 713 characters/min. "Fast" adds 30%.</p>
+  <div class="card scroll">
+    <table>
+      <thead><tr><th class="num">Length</th><th class="num">Speech</th><th class="num">Windows</th><th class="num">Requests</th><th class="num">Input tokens</th><th class="num">JEV cost</th></tr></thead>
+      <tbody><tr><td class='num'>15 min</td><td class='num'>normal</td><td class='num'>2</td><td class='num'>3</td><td class='num'>19,999</td><td class='num'>$0.00084</td></tr>
+<tr><td class='num'>15 min</td><td class='num'>fast (+30%)</td><td class='num'>2</td><td class='num'>3</td><td class='num'>20,827</td><td class='num'>$0.00087</td></tr>
+<tr><td class='num'>30 min</td><td class='num'>normal</td><td class='num'>3</td><td class='num'>4</td><td class='num'>28,172</td><td class='num'>$0.00118</td></tr>
+<tr><td class='num'>30 min</td><td class='num'>fast (+30%)</td><td class='num'>3</td><td class='num'>5</td><td class='num'>34,086</td><td class='num'>$0.00143</td></tr>
+<tr><td class='num'>60 min</td><td class='num'>normal</td><td class='num'>5</td><td class='num'>6</td><td class='num'>45,346</td><td class='num'>$0.00190</td></tr>
+<tr><td class='num'>60 min</td><td class='num'>fast (+30%)</td><td class='num'>6</td><td class='num'>7</td><td class='num'>54,348</td><td class='num'>$0.00228</td></tr>
+<tr><td class='num'>90 min</td><td class='num'>normal</td><td class='num'>7</td><td class='num'>8</td><td class='num'>62,521</td><td class='num'>$0.00263</td></tr>
+<tr><td class='num'>90 min</td><td class='num'>fast (+30%)</td><td class='num'>9</td><td class='num'>10</td><td class='num'>78,867</td><td class='num'>$0.00331</td></tr>
+<tr><td class='num'>120 min</td><td class='num'>normal</td><td class='num'>9</td><td class='num'>10</td><td class='num'>78,867</td><td class='num'>$0.00331</td></tr>
+<tr><td class='num'>120 min</td><td class='num'>fast (+30%)</td><td class='num'>12</td><td class='num'>13</td><td class='num'>102,557</td><td class='num'>$0.00431</td></tr></tbody>
+    </table>
+  </div>
+
+  <div class="callout"><strong>Hosting is the hidden cost on the cloud path.</strong> Audio is never deleted from Supabase Storage. The free tier's 1 GB
+  holds only about 17–35 hours of MP3, so it fills after roughly 20–35 interviews. Either delete audio once it's transcribed, which keeps
+  you on the free tier, or budget $25/month for Supabase Pro (100 GB). The Vercel Hobby plan is for non-commercial use only; Pro is $20/month.</div>
+
+  <h2>2 · Security: what was exploitable, what's fixed</h2>
+  <p class="muted">Every probe ran against a sandbox copy with fake keys, then again on the fixed code in two modes:
+  <strong>local</strong> (no password, the <code>start.bat</code> default) and <strong>password</strong> (<code>APP_PASSWORD</code> set, which is required for any deployment).
+  “Local only” means the API answers only on this computer's <code>localhost</code>, by design.</p>
+  <div class="card scroll">
+    <table>
+      <thead><tr><th>ID</th><th>Severity</th><th>Finding</th><th>Before</th><th>After · local</th><th>After · password</th></tr></thead>
+      <tbody><tr><td class="num">S9</td><td><span class="sev sev-critical">Critical</span></td>
+    <td><strong>Malicious page swaps SUPABASE_URL and steals the Supabase service-role key</strong><div class="evidence">Before: cross-site POST supabase_url -&gt; HTTP 200; attacker server received service-role key: True</div>
+        <div class="fix">Fix: CSRF is blocked, and on Vercel <code>/api/config/keys</code> is refused (keys live in Environment Variables).</div></td>
+    <td><span class="pill pill-bad">✕ Exploitable</span></td>
+    <td><span class="pill pill-ok">✓ Blocked</span></td>
+    <td><span class="pill pill-ok">✓ Blocked</span><div class="evidence">cross-site POST supabase_url -&gt; HTTP 403; attacker server received service-role key: False</div></td></tr><tr><td class="num">S1</td><td><span class="sev sev-serious">High</span></td>
+    <td><strong>Interview transcripts readable without any login</strong><div class="evidence">Before: GET /api/jobs anonymously -&gt; HTTP 200, 50 interviews listed</div>
+        <div class="fix">Fix: <code>APP_PASSWORD</code> turns on HTTP Basic auth for every route. Without it the API only answers <code>localhost</code>, and on Vercel it refuses to serve.</div></td>
+    <td><span class="pill pill-bad">✕ Exploitable</span></td>
+    <td><span class="pill pill-info">◐ Local only</span></td>
+    <td><span class="pill pill-ok">✓ Blocked</span><div class="evidence">GET /api/jobs anonymously -&gt; HTTP 401, 0 interviews listed</div></td></tr><tr><td class="num">S2</td><td><span class="sev sev-serious">High</span></td>
+    <td><strong>CORS lets any website call the API and read responses</strong><div class="evidence">Before: preflight from https://evil.example -&gt; Access-Control-Allow-Origin: &#x27;*&#x27;</div>
+        <div class="fix">Fix: Removed the wildcard <code>CORSMiddleware</code>. Every caller is same-origin (Vite proxy, Vercel rewrite).</div></td>
+    <td><span class="pill pill-bad">✕ Exploitable</span></td>
+    <td><span class="pill pill-ok">✓ Blocked</span></td>
+    <td><span class="pill pill-ok">✓ Blocked</span><div class="evidence">preflight from https://evil.example -&gt; Access-Control-Allow-Origin: None</div></td></tr><tr><td class="num">S5</td><td><span class="sev sev-serious">High</span></td>
+    <td><strong>DNS-rebinding: API answers requests addressed to a foreign Host</strong><div class="evidence">Before: GET /api/jobs with Host: attacker-rebind.example -&gt; HTTP 200</div>
+        <div class="fix">Fix: Without a password, any <code>Host</code> other than localhost gets 403.</div></td>
+    <td><span class="pill pill-bad">✕ Exploitable</span></td>
+    <td><span class="pill pill-ok">✓ Blocked</span></td>
+    <td><span class="pill pill-ok">✓ Blocked</span><div class="evidence">GET /api/jobs with Host: attacker-rebind.example -&gt; HTTP 401</div></td></tr><tr><td class="num">S3b</td><td><span class="sev sev-warning">Medium</span></td>
+    <td><strong>Cross-site HTML form can inject fake interviews / start paid transcriptions (CSRF)</strong><div class="evidence">Before: multipart POST /api/transcript/upload from https://evil.example -&gt; HTTP 200</div>
+        <div class="fix">Fix: Writes (POST/PUT/PATCH/DELETE) whose <code>Origin</code> isn't this host are now rejected.</div></td>
+    <td><span class="pill pill-bad">✕ Exploitable</span></td>
+    <td><span class="pill pill-ok">✓ Blocked</span></td>
+    <td><span class="pill pill-ok">✓ Blocked</span><div class="evidence">multipart POST /api/transcript/upload from https://evil.example -&gt; HTTP 403</div></td></tr><tr><td class="num">S4</td><td><span class="sev sev-warning">Medium</span></td>
+    <td><strong>Newline injection into .env via key form</strong><div class="evidence">Before: HTTP 200; injected line present: True; /api/status jev_model -&gt; attacker/model</div>
+        <div class="fix">Fix: Key values containing whitespace or newlines are rejected.</div></td>
+    <td><span class="pill pill-bad">✕ Exploitable</span></td>
+    <td><span class="pill pill-ok">✓ Blocked</span></td>
+    <td><span class="pill pill-ok">✓ Blocked</span><div class="evidence">HTTP 400; injected line present: False; /api/status jev_model -&gt; typesafe/jev-1.14</div></td></tr><tr><td class="num">S6</td><td><span class="sev sev-warning">Medium</span></td>
+    <td><strong>One oversized rule edit breaks every future evaluation (persistent DoS / prompt injection)</strong><div class="evidence">Before: PUT rule with 36 KB guidance -&gt; HTTP 200; next evaluation -&gt; HTTP 400 {&quot;detail&quot;:&quot;window 0: state plus question A1_01__custom__A1_01_saludo exceeds 30000 bytes; lower --window-bytes&quot;}</div>
+        <div class="fix">Fix: Rule text, guidance, criteria and comments are capped at 2,000 chars.</div></td>
+    <td><span class="pill pill-bad">✕ Exploitable</span></td>
+    <td><span class="pill pill-ok">✓ Blocked</span></td>
+    <td><span class="pill pill-ok">✓ Blocked</span><div class="evidence">PUT rule with 36 KB guidance -&gt; HTTP 422; next evaluation -&gt; HTTP 200 {&quot;job_id&quot;:&quot;74da2b0b6676&quot;,&quot;filename&quot;:&quot;tra</div></td></tr><tr><td class="num">S7</td><td><span class="sev sev-warning">Medium</span></td>
+    <td><strong>No size limit on transcript upload (30 MB accepted into RAM and store)</strong><div class="evidence">Before: 30 MB transcript -&gt; HTTP 200 in 1.2s</div>
+        <div class="fix">Fix: Transcript uploads are capped at 5 MB (about 80 h of speech) and audio at 2 GB.</div></td>
+    <td><span class="pill pill-bad">✕ Exploitable</span></td>
+    <td><span class="pill pill-ok">✓ Blocked</span></td>
+    <td><span class="pill pill-ok">✓ Blocked</span><div class="evidence">30 MB transcript -&gt; HTTP 413 in 0.2s</div></td></tr><tr><td class="num">S8</td><td><span class="sev sev-info">Low</span></td>
+    <td><strong>Legacy UI (static/app.js, innerHTML rendering) still publicly served</strong><div class="evidence">Before: GET /static/index.html -&gt; HTTP 200</div>
+        <div class="fix">Fix: It now sits behind the password. No user-controlled field reaches <code>innerHTML</code> in <code>static/app.js</code>; consider deleting the legacy UI.</div></td>
+    <td><span class="pill pill-bad">✕ Exploitable</span></td>
+    <td><span class="pill pill-info">◐ Local only</span></td>
+    <td><span class="pill pill-ok">✓ Blocked</span><div class="evidence">GET /static/index.html -&gt; HTTP 401</div></td></tr><tr><td class="num">S3</td><td><span class="sev sev-info">Info</span></td>
+    <td><strong>Cross-site request from a malicious page can overwrite API keys (CSRF)</strong><div class="evidence">Before: POST /api/config/keys, Origin https://evil.example, no Content-Type -&gt; HTTP 422; key written to .env: False</div>
+        <div class="fix">Fix: FastAPI's strict JSON content-type check already blocked this. The new Origin check blocks it a second time.</div></td>
+    <td><span class="pill pill-ok">✓ Blocked</span></td>
+    <td><span class="pill pill-ok">✓ Blocked</span></td>
+    <td><span class="pill pill-ok">✓ Blocked</span><div class="evidence">POST /api/config/keys, Origin https://evil.example, no Content-Type -&gt; HTTP 403; key written to .env: False</div></td></tr></tbody>
+    </table>
+  </div>
+
+  <h3>Other checks</h3>
+  <ul class="recs">
+    <li><strong>Secrets in git:</strong> <code>.env</code> is git-ignored and was never committed; only <code>.env.example</code> (empty values) is tracked.</li>
+    <li><strong>Injection:</strong> ffmpeg/ffprobe run with argument lists (no <code>shell=True</code>). Upload filenames are reduced to a safe basename
+    (<code>../../../evil.txt</code> was stored as <code>evil.txt</code>). The React UI never uses <code>dangerouslySetInnerHTML</code>, so transcript text is escaped.</li>
+    <li><strong>Supabase:</strong> RLS is enabled on all three tables with no anon policies, and the bucket is private. The service-role key is only used server-side.</li>
+    <li><strong>npm audit:</strong> 2 advisories in <code>vite 5.4.21 / esbuild 0.21.5</code>. They affect only the <code>npm run dev</code> server, not the built <code>dist/</code>. The fix is a major Vite upgrade, so I didn't apply it.</li>
+    <li><strong>Python CVE scan:</strong> <code>pip-audit</code> couldn't run here (the sandbox blocked the download). The installed versions are current:
+    fastapi 0.165, starlette 1.10, python-multipart 0.0.34, requests 2.34.2, urllib3 2.8.</li>
+  </ul>
+
+  <h2>3 · Stress test</h2>
+  <p class="muted">Fixed code, password mode, on your laptop (RTX 3060, local JSON store). Evaluations used the offline JEV stand-in so no credits were spent.
+  “p95 before” is the same test on the original code; the auth middleware adds no measurable latency.</p>
+  <div class="card scroll">
+    <table>
+      <thead><tr><th>Endpoint</th><th class="num">Requests @ concurrency</th><th class="num">req/s</th><th class="num">p50 ms</th>
+      <th class="num">p95 ms</th><th class="num">p95 before</th><th class="num">Errors</th></tr></thead>
+      <tbody><tr><td><code>GET /api/status</code></td><td class='num'>300 @ 30</td><td class='num'>186.4</td><td class='num'>79</td><td class='num'>875</td><td class='num'>928</td><td class='num'>0</td></tr><tr><td><code>GET /api/rules</code></td><td class='num'>300 @ 30</td><td class='num'>676.5</td><td class='num'>32</td><td class='num'>92</td><td class='num'>56</td><td class='num'>0</td></tr><tr><td><code>POST /api/transcript/example</code></td><td class='num'>150 @ 15</td><td class='num'>36.7</td><td class='num'>388</td><td class='num'>705</td><td class='num'>751</td><td class='num'>0</td></tr><tr><td><code>GET /api/jobs</code></td><td class='num'>300 @ 30</td><td class='num'>1217.6</td><td class='num'>21</td><td class='num'>30</td><td class='num'>51</td><td class='num'>0</td></tr><tr><td><code>POST evaluate (mock JEV)</code></td><td class='num'>40 @ 10</td><td class='num'>3.4</td><td class='num'>2605</td><td class='num'>4167</td><td class='num'>4181</td><td class='num'>0</td></tr><tr><td><code>60-min interview: upload+mock eval</code></td><td class='num'>93 KB</td><td class='num' colspan='3'>5 windows · 6 JEV requests · 0.83 s end-to-end</td><td class='num'>—</td><td class='num'>0</td></tr><tr><td><code>120-min interview: upload+mock eval</code></td><td class='num'>180 KB</td><td class='num' colspan='3'>9 windows · 10 JEV requests · 0.94 s end-to-end</td><td class='num'>—</td><td class='num'>0</td></tr></tbody>
+    </table>
+  </div>
+  <h3>Malformed input (22 cases, all handled without a server error)</h3>
+  <div class="card"><ul class="fuzz"><li><span class='ok'>✓ 422</span> evaluate: speaker_map not a dict</li><li><span class='ok'>✓ 400</span> evaluate: invalid role</li><li><span class='ok'>✓ 404</span> evaluate: unknown job</li><li><span class='ok'>✓ 422</span> evaluate: body is array</li><li><span class='ok'>✓ 400</span> upload: invalid JSON</li><li><span class='ok'>✓ 400</span> upload: JSON number</li><li><span class='ok'>✓ 400</span> upload: deep-nested JSON <em>(was 500 before the fix)</em></li><li><span class='ok'>✓ 400</span> upload: binary garbage .txt</li><li><span class='ok'>✓ 200</span> upload: turns with bad timestamps</li><li><span class='ok'>✓ 200</span> upload: traversal filename</li><li><span class='ok'>✓ 422</span> upload: no file</li><li><span class='ok'>✓ 200</span> jobs: limit=-5</li><li><span class='ok'>✓ 422</span> jobs: limit=abc</li><li><span class='ok'>✓ 422</span> rules: weight=99</li><li><span class='ok'>✓ 404</span> rules: unknown id</li><li><span class='ok'>✓ 404</span> rules: reset unknown id</li><li><span class='ok'>✓ 400</span> edit eval: bad status</li><li><span class='ok'>✓ 200</span> edit eval: custom probs out of range</li><li><span class='ok'>✓ 400</span> transcribe: unknown provider</li><li><span class='ok'>✓ 400</span> transcribe: min&gt;max speakers</li><li><span class='ok'>✓ 400</span> cloud: supabase missing</li><li><span class='ok'>✓ 400</span> download: not ready</li></ul></div>
+
+  <h3>What the stress test surfaced</h3>
+  <ol class="recs">
+    <li><strong>The local store slows down as history grows.</strong> After about 200 jobs, <code>.local_data/store.json</code> was 5.86 MB, and every write
+    rewrites the whole file under one global lock (276 ms per write). It grows about 30 KB per evaluated interview, so past roughly 1,000 interviews every
+    action takes over a second. Use Supabase, prune old jobs, or drop <code>indent=2</code> (about 30% smaller) before that.</li>
+    <li><strong><code>/api/status</code> is the slowest read</strong> (p95 around 0.7–1.1 s at 30 concurrent requests) because it probes the GPU and ffmpeg on every call. Cache it if many people keep the page open.</li>
+    <li><strong>Vercel's 60 s limit:</strong> evaluation runs inside the request. A 2-hour interview is about 10 JEV requests in three waves of 4, which fits if
+    OpenRouter answers each in under ~15 s. Deepgram's URL mode waits synchronously (58 s timeout), so 2-hour audio can time out on Vercel. Prefer AssemblyAI there, since it polls asynchronously.</li>
+    <li><strong>Evaluation is CPU-bound locally</strong> at about 3.4 mock evaluations/s with 10 concurrent. Real throughput is set by OpenRouter latency.</li>
+  </ol>
+
+  <h2>4 · What you need to do</h2>
+  <ol class="recs">
+    <li><strong>Before any deployment, set <code>APP_PASSWORD</code></strong> to a long random value (Vercel → Settings → Environment Variables). Without it the deployed API returns 503. Basic auth has no lockout, so length is the protection.</li>
+    <li>Add <code>"speech_model"</code> to the AssemblyAI request in <code>app/cloud_stt.py</code> so you're billed the Universal-2 rate ($0.17/h) instead of whatever the account default is.</li>
+    <li>Delete audio from Supabase Storage after transcription, or budget for Supabase Pro.</li>
+    <li><strong>Data protection:</strong> ENCOVI interviews are household data. The cloud path sends audio to AssemblyAI or Deepgram, and every path sends transcript text to OpenRouter/TypeSafe (US processors).
+    Local WhisperX keeps the audio on-site. Check this against INE's data-handling rules.</li>
+    <li>Optional: upgrade Vite to clear the dev-server advisories, and delete the legacy <code>static/</code> UI.</li>
+  </ol>
+
+  <footer>Files changed: <code>audio-audit/app/main.py</code> (access guard, CORS removed, input limits, key-form hardening, cloud job validation),
+  <code>audio-audit/app/jev_auditor.py</code> (nested-JSON crash). Regression check: <code>audio-audit/tests/check_security.py</code> (11 assertions, stdlib only).
+  Prices: AssemblyAI, Deepgram and OpenRouter list prices as of Nov 2026. Supabase/Vercel plan prices are from memory, so verify them before budgeting.</footer>
+</main>
+</body>
+</html>
