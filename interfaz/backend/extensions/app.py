@@ -1,4 +1,4 @@
-"""Aplicación de prueba aislada; producción local registra los mismos routers en main.py."""
+"""Aplicación de prueba aislada; la API unificada (plataforma/app.py) registra los mismos routers."""
 from fastapi import FastAPI
 from .api import router
 from .improvement import router as improvement_router

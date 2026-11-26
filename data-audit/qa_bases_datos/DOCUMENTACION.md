@@ -177,14 +177,18 @@ El puntaje global es el promedio de las dimensiones que aplican a la base.
 
 ## API
 
-La API es un `APIRouter` de FastAPI con prefijo `/api/qa`. Corre sola en el puerto 8001 o se monta en el backend de la interfaz (`interfaz/backend/main.py`) con 2 líneas. La documentación interactiva está en `/docs`: ahí se puede probar cada endpoint sin front.
+La API es un `APIRouter` de FastAPI con prefijo `/api/qa`. Corre sola en el puerto 8001 o montada en la API unificada de la plataforma (`plataforma/app.py`, la que se publica en Vercel). La documentación interactiva está en `/docs`: ahí se puede probar cada endpoint sin front.
 
 | Método | Ruta | Para qué |
 | --- | --- | --- |
 | GET | `/estado` | Si hay conexión a la base de datos |
 | GET | `/bases` | Bases configuradas (selector al subir) |
 | GET | `/bases/{codigo}` | Columnas y reglas de una base |
-| POST | `/cargas` | Subir un archivo. Form: `file`, `base`, `anio`, `mes`, `usuario` |
+| POST | `/cargas/subida` | Registrar una carga y obtener dónde subir el archivo (JSON: `base`, `anio`, `mes`, `archivo`, `tamano`) |
+| PUT | `/cargas/{id}/archivo` | Solo en modo local: recibir el archivo original |
+| POST | `/cargas/{id}/procesar` | Validar el archivo subido en la misma petición y devolver el reporte |
+| GET | `/cargas/{id}/reporte` | Reporte JSON de la última ejecución |
+| POST | `/cargas` | Subir un archivo en una sola petición. Form: `file`, `base`, `anio`, `mes`, `usuario` |
 | GET | `/cargas` | Historial, con filtros por base, estado e institución |
 | GET | `/cargas/{id}` | Estado, avance, puntajes y resumen |
 | GET | `/cargas/{id}/hallazgos` | Hallazgos, con filtros por severidad y dimensión |
@@ -202,14 +206,13 @@ La API es un `APIRouter` de FastAPI con prefijo `/api/qa`. Corre sola en el puer
 
 **Pantallas que necesita el front:** subir archivo con barra de avance, reporte de calidad (puntaje, dimensiones, hallazgos, descargas), bandeja de sugerencias (aprobar, corregir, rechazar), historial de cargas y vista del analista para aprobar o rechazar la carga.
 
-**Integración con la interfaz.** `interfaz/backend/main.py` ya agrega este motor al `sys.path` (`data-audit/qa_bases_datos/backend`). Para exponer la API completa basta con montar el router después de crear `app`:
+**Archivos: Supabase Storage o disco** (`qa/almacenamiento.py`). Con `SUPABASE_URL` y `SUPABASE_SERVICE_ROLE_KEY`, el original y los resultados viven en el bucket privado `qa-cargas` (`cargas/<carga_id>/…`): el navegador sube el original con una URL firmada y las descargas devuelven `{"url": …}` firmada por 5 minutos. Sin Supabase (o con `QA_ALMACENAMIENTO=local`) todo queda en `QA_ALMACEN`, como antes. La columna `archivo.ruta` guarda `supabase://<bucket>/<objeto>` o la ruta local.
 
-```python
-from qa.api import router as qa_router
-app.include_router(qa_router)
-```
+**En Vercel** no hay hilos en segundo plano ni disco persistente: `/cargas/{id}/procesar` valida dentro de la petición (hasta 300 s) usando `/tmp`, y `POST /cargas` y `/reprocesar` también corren en la misma petición (`QA_PROCESAMIENTO=sincrono` fuerza ese modo fuera de Vercel). Las conexiones usan `prepare_threshold=None` para funcionar con el pooler de Supabase en modo transacción.
 
-Las rutas no chocan: el adaptador de la interfaz usa `/data-api/*`, las encuestas `/api/surveys/*` y este módulo `/api/qa`. Ambos usan el puerto 8001, así que no hay que correr `iniciar_api.bat` al mismo tiempo que el backend de la interfaz.
+**Usuario.** En la plataforma, las acciones quedan a nombre del correo con el que se inició sesión en Supabase Auth; la primera vez se crea en `usuario` con rol `analista_ine`. El campo `usuario` de los formularios sigue funcionando para uso directo de la API.
+
+**Integración con la interfaz.** La API unificada (`plataforma/app.py`) monta este router junto con Audio Audit y las extensiones; las rutas no chocan (`/api/qa/*`, `/api/surveys/*`, `/api/improvement/*` y las de audio). En local se arranca desde la raíz con `uvicorn api.index:app --port 8000`; `iniciar_api.bat` sigue sirviendo para probar este módulo solo, en el puerto 8001.
 
 ## Codificador con IA
 

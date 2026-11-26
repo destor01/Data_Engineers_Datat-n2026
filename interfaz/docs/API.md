@@ -1,12 +1,20 @@
 # Contrato de integración
 
-Todas las rutas se resuelven respecto a la dirección pública del servicio configurado en `.env`. Las respuestas son JSON salvo las descargas. Los errores deben devolver un código HTTP de error y `{ "detail": "Mensaje legible" }`. El frontend valida los campos necesarios y muestra un error ante formatos incompatibles.
+Todas las rutas son de la API unificada, en el mismo dominio que la interfaz. Con Supabase Auth configurado, cada petición lleva `Authorization: Bearer <token de sesión>`; sin sesión válida la API responde 401. Las respuestas son JSON salvo las descargas. Los errores deben devolver un código HTTP de error y `{ "detail": "Mensaje legible" }`. El frontend valida los campos necesarios y muestra un error ante formatos incompatibles.
 
 ## Audio Audit
 
 Contrato basado en las rutas existentes de `audio-audit/app/main.py`. El backend mantiene su responsabilidad sobre modelos, tokens, almacenamiento y procesamiento.
 
-### POST /api/transcribe
+### Con Supabase Storage (despliegue)
+
+1. `POST /api/storage/upload-url` con `{ "filename", "content_type" }` → `{ "job_id", "signed_upload_url", "storage_path" }`.
+2. `PUT` del archivo a `signed_upload_url` (sin el token de la sesión).
+3. `POST /api/transcribe/cloud` con `{ job_id, filename, storage_path, content_type, provider: "auto", diarize, min_speakers, max_speakers }` → el trabajo.
+
+Si Storage no está configurado, el paso 1 responde 400 y la interfaz usa la ruta siguiente.
+
+### POST /api/transcribe (local)
 
 `multipart/form-data`:
 
@@ -47,48 +55,53 @@ El reproductor usa el archivo seleccionado mediante una URL temporal del navegad
 
 ## Data Audit
 
-Implementado por backend/main.py de esta entrega mediante el motor original. Consulta PostgreSQL para cargar versiones activas y catálogos, procesa con qa.motor y genera archivos con qa.salidas. No registra cargas ni aprobaciones en PostgreSQL. El adaptador local escucha en 8001 y el proxy Vite lo publica bajo /data-api.
+Rutas de `data-audit/qa_bases_datos/backend/qa/api.py` (prefijo `/api/qa`). La carga queda registrada en PostgreSQL (tablas `carga`, `ejecucion`, `hallazgo`, `archivo`, `evento_auditoria`) a nombre del usuario que inició sesión.
 
-### GET /data-api/bases
+### GET /api/qa/bases
+
+Lista de `{ codigo, nombre, institucion, periodicidad, version, columnas_publicadas }`. La interfaz muestra solo las que tienen `version` activa.
+
+### POST /api/qa/cargas/subida
 
 ```json
-[
-  { "codigo": "DETENIDOS", "nombre": "Detenidos · PNC" }
-]
+{ "base": "EMERGENCIAS", "anio": 2025, "mes": 11, "archivo": "emergencias.csv", "tamano": 2400 }
 ```
 
-Una lista vacía debe representar que no hay bases configuradas; el formulario no permite procesar hasta tener opciones.
+Valida base, período (las bases mensuales exigen mes), extensión (`.xlsx`, `.xls`, `.csv`, `.txt`) y tamaño (`QA_MAX_MB`, 50 por defecto). Respuesta:
 
-### POST /data-api/procesar
+```json
+{ "carga_id": "uuid", "base": "EMERGENCIAS", "max_bytes": 52428800,
+  "subida": { "url": "https://…/storage/v1/object/upload/sign/qa-cargas/cargas/uuid/original.csv?token=…", "metodo": "PUT", "directa": true } }
+```
 
-`multipart/form-data`: `file` (XLSX, XLS o CSV), `base` (código), `anio` (entero), `mes` (entero de 1 a 12). Año y mes representan el período de referencia; la aplicabilidad de reglas por período depende de la base y del motor. El frontend espera la respuesta hasta diez minutos. Para trabajos más largos, el equipo debería acordar un contrato por trabajos similar al de audio.
+Con `directa: true` el archivo se sube con `PUT` a la URL firmada de Supabase Storage, sin el token de la sesión. Con `directa: false` (modo local) la URL es `/api/qa/cargas/{id}/archivo` y sí lleva el token.
+
+### POST /api/qa/cargas/{id}/procesar
+
+Valida el archivo subido en la misma petición (hasta 300 s en Vercel) y responde:
 
 ```json
 {
+  "carga_id": "uuid", "estado": "terminado", "segundos": 3.2,
   "reporte": {
-    "base": "DETENIDOS",
-    "total_registros": 100,
-    "registros_validos": 95,
-    "registros_excluidos": 5,
-    "puntaje": 92.5,
-    "puntajes": { "completitud": 95, "validez": 90 },
-    "hallazgos": [
-      { "severidad": "error", "mensaje": "Campos obligatorios vacíos.", "n": 5 }
-    ]
+    "base": "EMERGENCIAS", "total_registros": 1250, "registros_validos": 1198, "registros_excluidos": 52,
+    "puntaje": 91.6, "puntajes": { "estructura": 100, "completitud": 94.2 },
+    "hallazgos": [ { "severidad": "error", "mensaje": "Texto legible", "n": 32 } ]
   },
   "descargas": {
-    "corregido": "/data-api/descargas/identificador/corregido",
-    "bitacora": "/data-api/descargas/identificador/bitacora"
+    "corregido": "/api/qa/cargas/uuid/descargar/corregido",
+    "bitacora": "/api/qa/cargas/uuid/descargar/bitacora",
+    "reporte": "/api/qa/cargas/uuid/descargar/reporte"
   }
 }
 ```
 
-`puntaje` puede ser nulo si no se calcula. Las dimensiones se reciben como un diccionario de puntuaciones entre 0 y 100; el frontend dibuja las barras en esa escala. Las severidades admitidas son `error`, `advertencia` e `info`. `n` es opcional. `descargas` puede estar vacío. Las descargas deben usar HTTP/HTTPS y pertenecer al mismo origen del servicio de datos. El backend debe responder con el contenido y encabezados adecuados para descargar cada archivo.
+Errores: 400 si el archivo no se ha subido, 409 si la carga ya se procesó (usar `/reprocesar`), 413 por tamaño, 422 si el motor no pudo validar la base (el mensaje explica la causa).
 
-## Responsabilidades del backend
+### GET /api/qa/cargas/{id}/descargar/{rol}
 
-Aplicar validación de archivos, límites, permisos, reglas institucionales y política de conservación. Con el proxy local, el navegador usa el mismo origen. Si se accede directamente a los backend, CORS debe admitir el origen del frontend; las rutas deben admitir HTTPS si la interfaz se publica con HTTPS. El contrato actual no incorpora autenticación ni aprobación de sugerencias; esas capacidades requieren un acuerdo y una implementación adicionales antes de exponer información restringida.
+`rol`: `corregido`, `bitacora` o `reporte`. Con Supabase Storage responde `{ "url": "…", "nombre": "…" }` (URL firmada por 5 minutos); en local entrega el archivo. El original no se descarga por esta ruta porque contiene datos personales.
 
-## Descargas del adaptador
+### Otras rutas
 
-GET /data-api/descargas/{job_id}/{role}, con job_id hexadecimal de 32 caracteres y role corregido, bitacora o reporte. Devuelve 404 si no existe. POST puede responder 400 por formato/base vacía o no configurada, 413 por carga mayor de 100 MB, 409 por ejecución ocupada, 422 por parámetros inválidos, 503 por DATABASE_URL ausente y 500 por fallo general; GET bases usa 503 para fallos de consulta. No se exponen originales mediante esta ruta.
+`GET /api/qa/cargas`, `GET /api/qa/cargas/{id}`, `GET /api/qa/cargas/{id}/reporte`, `/hallazgos`, `/sugerencias`, `/excluidos`, `POST /api/qa/cargas/{id}/reprocesar`, `/aprobar`, `/rechazar`, `POST /api/qa/sugerencias/{id}/aprobar|rechazar` y `GET /api/qa/catalogos/{codigo}`. `POST /api/qa/cargas` (multipart) se mantiene para uso directo de la API.

@@ -2,10 +2,11 @@ import './styles.css';
 import './ine-theme.css';
 import { mountExtensions } from './extensions';
 import type { AudioJob, AuditResult } from './types';
-import { demo, downloadUrl } from './services/config';
-import { listBases, audit } from './services/dataApi';
+import { demo } from './services/config';
+import { listBases, audit, download } from './services/dataApi';
 import { transcribe } from './services/audioApi';
-import { message } from './services/http';
+import { message, setUnauthorizedHandler } from './services/http';
+import { currentSession, loginEnabled, onSessionChange, signIn, signOut } from './services/auth';
 
 function el<T extends HTMLElement = HTMLElement>(id: string): T {
   const element = document.getElementById(id);
@@ -28,11 +29,14 @@ function save(name: string, text: string, type = 'text/plain;charset=utf-8') {
 function duration(seconds: number): string { return `${Math.floor(seconds / 60).toString().padStart(2, '0')}:${Math.floor(seconds % 60).toString().padStart(2, '0')}`; }
 
 mountExtensions();
-el('modeBadge').textContent = demo ? 'Demostración' : 'Modo API';
+el('modeBadge').textContent = demo ? 'Demostración' : loginEnabled ? 'Conectado' : 'Modo API · local';
 el('modeBadge').classList.toggle('demo', demo);
 el('demoNotice').hidden = !demo;
 if (demo) { el('audioSubmit').textContent = 'Ver ejemplo de transcripción'; el('dataSubmit').textContent = 'Ver ejemplo de auditoría'; }
 let basesLoaded = false;
+// Supabase Storage (plan gratuito) acepta archivos de hasta 50 MB; se puede ajustar en el despliegue.
+const maxMb = { audio: Number(import.meta.env.VITE_MAX_AUDIO_MB) || 50, data: Number(import.meta.env.VITE_MAX_DATA_MB) || 50 };
+el('audioMax').textContent = String(maxMb.audio); el('dataMax').textContent = String(maxMb.data);
 function route(focus = false) {
   const hash = location.hash.slice(1);
   const current = ['inicio', 'audio', 'datos', 'encuestas', 'mejora'].includes(hash) ? hash : 'inicio';
@@ -85,7 +89,7 @@ for (const kind of ['audio', 'data'] as const) {
 function selectedFile(kind: 'audio' | 'data'): File {
   const file = el<HTMLInputElement>(`${kind}File`).files?.[0];
   if (!file || !file.size) throw new Error('Selecciona un archivo que no esté vacío.');
-  const max = kind === 'audio' ? 500 : 100;
+  const max = maxMb[kind];
   if (file.size > max * 1024 * 1024) throw new Error(`El archivo supera el límite de ${max} MB.`);
   const valid = kind === 'audio' ? /\.(mp3|wav|m4a|ogg|flac|aac|opus|webm|wma|mp4)$/i : /\.(xlsx|xls|csv)$/i;
   if (!valid.test(file.name)) throw new Error('El formato del archivo no es compatible. Revisa los formatos indicados.');
@@ -108,16 +112,14 @@ el('audioForm').addEventListener('submit', async event => {
   if (controllers.audio) return;
   try {
     const file = selectedFile('audio');
-    const form = new FormData(); form.append('file', file);
-    form.append('model', el<HTMLSelectElement>('model').value);
-    form.append('denoise', String(el<HTMLInputElement>('denoise').checked));
-    form.append('diarize', String(el<HTMLInputElement>('diarize').checked));
     const speakers = el<HTMLSelectElement>('speakers').value;
-    if (speakers !== 'auto') { const [min, max = min] = speakers.split('-'); form.append('min_speakers', min); form.append('max_speakers', max); }
+    const [min, max = min] = speakers === 'auto' ? [] : speakers.split('-').map(Number);
+    const input = { file, model: el<HTMLSelectElement>('model').value, denoise: el<HTMLInputElement>('denoise').checked,
+      diarize: el<HTMLInputElement>('diarize').checked, minSpeakers: min ?? null, maxSpeakers: max ?? null };
     controllers.audio = new AbortController(); busy('audio', true); el('audioResult').hidden = true;
     const bar = el<HTMLProgressElement>('audioProgress'); bar.value = 0; bar.hidden = false;
     status('audioStatus', demo ? 'Preparando ejemplo. El audio no se está procesando.' : 'Enviando audio al servicio…');
-    const job = await transcribe(form, controllers.audio.signal, (job: AudioJob) => {
+    const job = await transcribe(input, controllers.audio.signal, (job: AudioJob) => {
       bar.value = Math.max(0, Math.min(100, job.progress)); status('audioStatus', job.stage);
     });
     if (audioObjectUrl) URL.revokeObjectURL(audioObjectUrl);
@@ -165,12 +167,13 @@ el('dataForm').addEventListener('submit', async event => {
   event.preventDefault(); if (controllers.data) return;
   try {
     const file = selectedFile('data');
-    const form = new FormData(); form.append('file', file); form.append('base', el<HTMLSelectElement>('base').value); form.append('anio', el<HTMLInputElement>('year').value); form.append('mes', el<HTMLSelectElement>('month').value);
+    const input = { file, base: el<HTMLSelectElement>('base').value, anio: Number(el<HTMLInputElement>('year').value), mes: Number(el<HTMLSelectElement>('month').value) };
+    if (!input.base) throw new Error('Selecciona la base institucional.');
     controllers.data = new AbortController(); busy('data', true); el('dataResult').hidden = true;
-    status('dataStatus', demo ? 'Preparando resultados de ejemplo. No se analiza el archivo.' : 'Auditando la base. El tiempo depende del tamaño del archivo…');
-    currentReport = await audit(form, controllers.data.signal);
+    status('dataStatus', demo ? 'Preparando resultados de ejemplo. No se analiza el archivo.' : 'Preparando la auditoría…');
+    currentReport = await audit(input, controllers.data.signal, text => status('dataStatus', text));
     const r = currentReport.reporte;
-    el('reportContext').textContent = `${demo ? 'DATOS DE EJEMPLO · ' : ''}${file.name} · ${form.get('base')} · ${form.get('mes')}/${form.get('anio')}`;
+    el('reportContext').textContent = `${demo ? 'DATOS DE EJEMPLO · ' : ''}${file.name} · ${input.base} · ${input.mes}/${input.anio}`;
     el('metrics').replaceChildren();
     for (const [label, value] of [['Puntaje global', r.puntaje], ['Registros recibidos', r.total_registros], ['Válidos', r.registros_validos], ['Excluidos', r.registros_excluidos]] as const) {
       const card = node('div', '', 'metric'); card.append(node('strong', value?.toLocaleString('es-GT') ?? '—'), node('span', label)); el('metrics').append(card);
@@ -181,9 +184,14 @@ el('dataForm').addEventListener('submit', async event => {
       const bar = node('progress'); bar.max = 100; bar.value = Math.min(100, Math.max(0, value)); bar.setAttribute('aria-label', name); row.append(header, bar); el('dimensions').append(row);
     }
     el<HTMLSelectElement>('severity').value = 'all'; renderFindings(); el('downloads').replaceChildren();
+    const labels: Record<string, string> = { corregido: 'base corregida', bitacora: 'bitácora', reporte: 'reporte JSON' };
     for (const [name, path] of Object.entries(currentReport.descargas)) {
-      try { const link = node('a', `Descargar ${name}`, 'button secondary'); link.href = downloadUrl(path); link.target = '_blank'; link.rel = 'noopener noreferrer'; el('downloads').append(link); }
-      catch { el('downloads').append(node('p', `El enlace de ${name} no es válido. Solicita el archivo al equipo del servicio.`, 'error')); }
+      const button = node('button', `Descargar ${labels[name] ?? name}`, 'button secondary'); button.type = 'button';
+      button.addEventListener('click', async () => {
+        button.disabled = true;
+        try { await download(path); } catch (error) { status('dataStatus', message(error), true); } finally { button.disabled = false; }
+      });
+      el('downloads').append(button);
     }
     el('dataResult').hidden = false;
     status('dataStatus', demo ? 'Ejemplo listo. Las cifras no corresponden al archivo seleccionado.' : 'Auditoría completada. Revisa los hallazgos y archivos disponibles.');
@@ -193,4 +201,36 @@ el('dataForm').addEventListener('submit', async event => {
 el('downloadReport').addEventListener('click', () => {
   if (currentReport) save(demo ? 'ejemplo-auditoria.json' : 'resumen-auditoria.json', JSON.stringify({ modo: demo ? 'demostracion' : 'api', ...currentReport.reporte }, null, 2), 'application/json');
 });
-route();
+// ---------------------------------------------------------------------------
+// Inicio de sesión (Supabase Auth). En modo demostración o local sin Supabase no se pide.
+// ---------------------------------------------------------------------------
+function showApp(email: string | null) {
+  el('login').hidden = true; el('app').hidden = false;
+  el('userEmail').textContent = email ?? ''; el('logout').hidden = !loginEnabled;
+  route();
+}
+function showLogin(notice = '') {
+  if (controllers.audio || controllers.data) { controllers.audio?.abort(); controllers.data?.abort(); }
+  el('app').hidden = true; el('login').hidden = false; basesLoaded = false;
+  status('loginStatus', notice, Boolean(notice));
+  el<HTMLInputElement>('loginEmail').focus();
+}
+el('loginForm').addEventListener('submit', async event => {
+  event.preventDefault();
+  const button = el<HTMLButtonElement>('loginSubmit'); button.disabled = true; status('loginStatus', 'Verificando…');
+  try {
+    const session = await signIn(el<HTMLInputElement>('loginEmail').value, el<HTMLInputElement>('loginPassword').value);
+    el<HTMLInputElement>('loginPassword').value = ''; status('loginStatus', '');
+    showApp(session.user.email ?? null);
+  } catch (error) { status('loginStatus', message(error), true); }
+  finally { button.disabled = false; }
+});
+el('logout').addEventListener('click', async () => { await signOut(); showLogin(); });
+setUnauthorizedHandler(() => { if (loginEnabled) showLogin('Tu sesión expiró. Vuelve a iniciar sesión.'); });
+onSessionChange(session => { if (!session && loginEnabled && el('login').hidden) showLogin(); });
+
+if (loginEnabled) {
+  void currentSession().then(session => session ? showApp(session.user.email ?? null) : showLogin());
+} else {
+  showApp(null);
+}

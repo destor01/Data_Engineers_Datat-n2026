@@ -16,4 +16,4 @@ La carpeta de salida documentada por defecto es `almacen`. Cada carga puede cont
 
 ## Operación desde la interfaz común
 
-Usar [el recorrido integrado](interfaz.md#recorrido-de-usuario) para formularios, reproducción, filtro de severidad, descargas y cancelación de espera. El modo demo solo muestra ejemplos. El modo API usa los servicios de 8000 y 8001 a través del proxy.
+Usar [el recorrido integrado](interfaz.md#recorrido-de-usuario) para formularios, reproducción, filtro de severidad, descargas y cancelación de espera. El modo demo solo muestra ejemplos. El modo API usa la API unificada (`/api/*`) y, en el despliegue, pide iniciar sesión con una cuenta creada por el equipo.

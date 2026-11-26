@@ -370,7 +370,7 @@ def main() -> None:
     cfg = yaml.safe_load((args.config / "catalogos.yaml").read_text(encoding="utf-8"))
     catalogos = armar_catalogos(cfg, diccs, rutas, avisos)
 
-    with psycopg.connect(args.db) as con, con.cursor() as cur:
+    with psycopg.connect(args.db, prepare_threshold=None) as con, con.cursor() as cur:
         cat_ids = guardar_catalogos(cur, catalogos)
         print(f"Catálogos: {len(cat_ids)}")
         n_reglas = guardar_reglas(cur, args.config / "reglas.yaml")

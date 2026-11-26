@@ -152,14 +152,18 @@ def crear_carga(cur, d: DefinicionBase, usuario_id: int, anio: int, mes: int | N
 
 
 def guardar_en_bd(cur, d: DefinicionBase, r: Resultado, carga_id: str, rutas: dict[str, Path],
-                  usuario_id: int) -> str:
-    """Escribe ejecución, puntajes, hallazgos, cambios, excluidos y archivos. Devuelve el id de la ejecución."""
+                  usuario_id: int, ubicar=None) -> str:
+    """Escribe ejecución, puntajes, hallazgos, cambios, excluidos y archivos. Devuelve el id de la ejecución.
+
+    `ubicar(rol, ruta_local) -> str` decide qué se guarda en archivo.ruta (p. ej. sube el archivo a
+    Supabase Storage y devuelve "supabase://..."). Por defecto, la ruta local."""
+    ubicar = ubicar or (lambda rol, p: str(p))
     for rol in ("original", "corregido", "reporte", "bitacora"):
         p = rutas[rol]
         cur.execute(
             """INSERT INTO archivo (carga_id, rol, nombre, formato, tamano_bytes, sha256, ruta, hojas)
                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)""",
-            (carga_id, rol, p.name, p.suffix.lstrip("."), p.stat().st_size, _sha256(p), str(p),
+            (carga_id, rol, p.name, p.suffix.lstrip("."), p.stat().st_size, _sha256(p), ubicar(rol, p),
              json.dumps(r.hojas, ensure_ascii=False, default=_json) if rol == "original" else None))
 
     rep = reporte(d, r)

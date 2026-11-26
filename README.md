@@ -1,10 +1,8 @@
 # Quality Audit | Datatón INE Guatemala 2026
 
-## Integración de Survey Audit y Quality Improvement
+## Plataforma integrada
 
-Las páginas nuevas comparten la interfaz existente y el backend de `interfaz/backend`.
-Ver [conexiones API e inicio local](documentation/integration-api.md) para ejecutar la integración y conocer sus límites actuales.
-Los motores de `audio-audit` y `data-audit` se conservan sin modificaciones.
+La [interfaz](interfaz/README.md) y una **API unificada** (`api/index.py`) reúnen Audio Audit, Data Audit, Survey Audit y Quality Improvement. Se publican en **un proyecto de Vercel y uno de Supabase** (base de datos, archivos privados y login): ver [despliegue](documentation/deployment.md) y [accesos](documentation/accesos.md). Inicio local de todo junto: [interfaz integrada](documentation/interfaz.md#procesamiento-real-api-unificada).
 
 **Equipo:** Data Engineers
 
@@ -17,7 +15,7 @@ Quality Audit es un prototipo modular para apoyar la auditoría de calidad de in
 | [Audio Audit](audio-audit/README.md) | Transcripción en español, reducción de ruido, marcas temporales, diarización y exportación TXT | Código revisado; ejecución pendiente de verificar tras la reorganización |
 | [Data Audit](data-audit/qa_bases_datos/backend/README.md) | Validación, estandarización, sugerencias, exclusiones, puntuación y bitácora | Resultados reportados por el equipo; reproducción pendiente |
 
-La auditoría automática del cumplimiento de preguntas de una boleta, la identificación del rol del encuestador y una interfaz unificada no están confirmadas en la versión revisada. Los módulos se ejecutan por separado.
+La auditoría automática del cumplimiento de preguntas de una boleta y la identificación del rol del encuestador no están confirmadas en la versión revisada. Cada módulo también se puede ejecutar por separado, como se describe abajo.
 
 ## Puesta en marcha
 
@@ -50,6 +48,7 @@ Cargar la configuración y los diccionarios autorizados antes de procesar archiv
 - [Arquitectura](documentation/architecture.md)
 - [Metodología](documentation/methodology.md)
 - [Instalación](documentation/installation.md)
+- [Despliegue en Vercel y Supabase](documentation/deployment.md)
 - [Pruebas y resultados](documentation/testing.md)
 - [Fuentes de datos](documentation/data-sources.md)
 - [Manual de usuario](documentation/user-guide.md)
