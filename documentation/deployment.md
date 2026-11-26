@@ -77,20 +77,95 @@ Cada push a `main` publica producción; cada rama o PR genera una vista previa c
 
 ## 3. Desarrollo local
 
-Con un `.env` en la raíz (copiar `.env.example`), desde la raíz:
+### 3.1 Requisitos
+
+| Programa | Versión | Comprobar |
+|---|---|---|
+| Python | 3.12 o superior | `python --version` |
+| Node.js y npm | Node 20.19+ o 22.12+ | `node --version` |
+| PostgreSQL | 16 (con `psql` y `createdb` en el PATH) | `psql --version` |
+| Git | cualquiera reciente | `git --version` |
+
+Además necesitas los tres diccionarios oficiales del INE (defunciones 2018-2022, nacimientos 2018-2022 y detenidos PNC). No están en el repositorio.
+
+### 3.2 Instalar dependencias de Python
+
+Desde la raíz del repositorio:
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install --upgrade pip
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+```
+
+### 3.3 Configurar variables
+
+```powershell
+Copy-Item .env.example .env
+Copy-Item interfaz\.env.example interfaz\.env.local
+```
+
+En `.env` llena como mínimo `DATABASE_URL`, por ejemplo `postgresql://postgres:clave@127.0.0.1:5432/quality_audit`. Las llaves de IA (`ANTHROPIC_API_KEY`, `ASSEMBLYAI_API_KEY`, `OPENROUTER_API_KEY`) son opcionales: sin ellas, los módulos funcionan sin las funciones de IA. Para trabajar sin IA en Data Audit, agrega `QA_IA_PROVEEDOR=ninguno`.
+
+En `interfaz\.env.local` deja `VITE_APP_MODE=api` y `API_BACKEND_URL=http://127.0.0.1:8000`. Si dejas vacías `VITE_SUPABASE_URL` y `VITE_SUPABASE_ANON_KEY`, no se pide login.
+
+### 3.4 Crear la base de datos
+
+```powershell
+createdb -U postgres quality_audit
+psql -U postgres -d quality_audit -f data-audit\qa_bases_datos\schema.sql
+psql -U postgres -d quality_audit -f interfaz\backend\migrations\001_extensions.sql
+```
+
+Si usas Supabase en lugar de un PostgreSQL local, ejecuta `.\.venv\Scripts\python.exe supabase\configurar.py` en lugar de estos dos `psql` (ver la sección 1).
+
+### 3.5 Cargar reglas y catálogos del INE
+
+```powershell
+cd data-audit\qa_bases_datos\backend
+..\..\..\.venv\Scripts\python.exe -m scripts.cargar_config --db "postgresql://postgres:clave@127.0.0.1:5432/quality_audit" `
+  --dicc-defunciones "C:\ruta\diccionario-defunciones-2018-2022.xlsx" `
+  --dicc-nacimientos "C:\ruta\diccionario-nacimientos-2018-2022.xlsx" `
+  --dicc-pnc "C:\ruta\diccionario-detenidos-pnc.xlsx"
+..\..\..\.venv\Scripts\python.exe -m qa.cli bases
+cd ..\..\..
+```
+
+Los tres diccionarios son obligatorios. Al terminar se deben ver 33 reglas, 31 catálogos y 5 bases activas, y `qa.cli bases` lista las 5 bases.
+
+### 3.6 Instalar la interfaz
+
+```powershell
+cd interfaz
+npm ci
+cd ..
+```
+
+### 3.7 Ejecutar
+
+Terminal 1, desde la raíz (API):
 
 ```powershell
 .\.venv\Scripts\python.exe -m uvicorn api.index:app --port 8000 --reload
 ```
 
-Y en otra terminal, desde `interfaz/` (con `interfaz/.env.local` copiado de `interfaz/.env.example`):
+Terminal 2, desde `interfaz\`:
 
 ```powershell
-npm ci
 npm run dev
 ```
 
-Vite envía `/api/*` al puerto 8000. Si no defines las variables de Supabase, no se pide login, la API solo atiende `localhost` y Data Audit guarda los archivos en `data-audit/qa_bases_datos/almacen/`. Los módulos se siguen pudiendo ejecutar por separado como indica su README.
+Abre http://127.0.0.1:5173. Vite envía `/api/*` al puerto 8000.
+
+### 3.8 Verificar
+
+- http://127.0.0.1:8000/api/salud responde `{"ok":true,"login":false,"entorno":"local"}`.
+- http://127.0.0.1:8000/api/qa/bases lista las 5 bases.
+- En la interfaz: Data Audit → base *Emergencias*, 2025, marzo → subir `documentation\ejemplos\emergencias_sintetica.csv`. Debe terminar con puntaje 92.2.
+
+Si no defines las variables de Supabase, no se pide login, la API solo atiende `localhost` y Data Audit guarda los archivos en `data-audit/qa_bases_datos/almacen/`. Los módulos también se pueden ejecutar por separado, como indica el README de cada uno.
+
+**Opcional, transcripción local con GPU:** `.\.venv\Scripts\python.exe -m pip install -r audio-audit\requirements-local.txt`, FFmpeg en el PATH y un token de Hugging Face con acceso al modelo `pyannote/speaker-diarization-community-1`.
 
 ## Límites conocidos
 
