@@ -195,14 +195,4 @@ Cada respuesta queda como **Coincide**, **No coincide** o **No verificable**, co
 
 ---
 
-## 7. Preguntas frecuentes
 
-| Situación | Qué hacer |
-|---|---|
-| «No se reconoce la institución de este reporte» | Elegir la institución en Quality Improvement y volver a subir el reporte. |
-| Una base no aparece en la lista | El administrador debe cargar su configuración (ver [instalación](installation.md#42-cargar-reglas-y-catálogos-del-ine)). |
-| «El archivo supera el límite» | Dividir el archivo (máximo 50 MB). |
-| La lectura del PDF parece detenida | Esperar: si el servicio de IA está ocupado, la plataforma reintenta sola. Se puede continuar después. |
-| «Primero vincula la transcripción» | Hacer el paso 5.3.1 antes de validar. |
-| «Falta la llave OPENROUTER_API_KEY» al evaluar | El administrador debe configurar JEV en el servidor. |
-| Se aprobó una corrección por error | Data Audit → **Correcciones guardadas** → quitarla y volver a validar la base. |
