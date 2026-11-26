@@ -19,7 +19,6 @@
 │       └── backend/
 ├── interfaz/
 │   ├── src/
-│   ├── backend/main.py
 │   ├── docs/API.md
 │   ├── .env.example
 │   └── vite.config.ts
@@ -52,7 +51,7 @@ FastAPI expone la interfaz estática y API local. `app/main.py` guarda archivos 
 
 ## Data Audit
 
-El backend documenta `qa/lector.py`, `definicion.py`, `transformaciones.py`, `codificador.py`, `reglas.py`, `motor.py`, `salidas.py`, `texto.py` y `cli.py`. Las configuraciones YAML describen bases, alias, catálogos y reglas. `scripts/cargar_config.py` carga definiciones y diccionarios en PostgreSQL; `scripts/comparar_con_ine.py` compara resultados con publicaciones. El esquema contiene 19 tablas según el README. La bitácora incluye cargas, ejecuciones, hallazgos, correcciones y exclusiones. La CLI y el adaptador HTTP de interfaz/backend/main.py son caminos distintos: la CLI contempla persistencia de cargas; el adaptador genera archivos sin llamar a guardar_en_bd.
+El backend documenta `qa/lector.py`, `definicion.py`, `transformaciones.py`, `codificador.py`, `reglas.py`, `motor.py`, `salidas.py`, `texto.py` y `cli.py`. Las configuraciones YAML describen bases, alias, catálogos y reglas. `scripts/cargar_config.py` carga definiciones y diccionarios en PostgreSQL; `scripts/comparar_con_ine.py` compara resultados con publicaciones. El esquema contiene 19 tablas según el README. La bitácora incluye cargas, ejecuciones, hallazgos, correcciones y exclusiones. La API (`qa/api.py`) registra cargas, ejecuciones y archivos en PostgreSQL; en el despliegue los archivos viven en Supabase Storage (`qa/almacenamiento.py`).
 
 ## Integración futura
 
@@ -63,8 +62,9 @@ La selección del rol encuestador y la auditoría de protocolos siguen sin compr
 ```mermaid
 flowchart LR
     U[Navegador] --> V[Vite: frontend y proxy local]
-    V -->|/audio-service sin prefijo| A[Audio Audit :8000]
-    V -->|/data-api| D[Adaptador :8001]
+    V -->|/api/*| U[API unificada :8000 o Vercel]
+    U --> A[Audio Audit]
+    U --> D[Data Audit]
     D --> Q[qa.motor y qa.salidas]
     D --> P[(PostgreSQL: definiciones)]
     Q --> F[interfaz/backend/almacen]

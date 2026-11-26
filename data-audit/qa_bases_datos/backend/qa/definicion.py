@@ -91,6 +91,7 @@ class DefinicionBase:
     variables: list[Variable]
     catalogos: dict[str, Catalogo]
     reglas: dict[str, Regla]
+    rechazos: dict[str, set[tuple[str, str]]] = field(default_factory=dict)   # columna -> {(texto, código)}
 
     def alias(self) -> dict[str, Variable]:
         return {a: v for v in self.variables for a in v.alias}
@@ -166,5 +167,16 @@ def cargar_definicion(cur, codigo_base: str) -> DefinicionBase:
     )
     reglas = {r[1]: Regla(r[0], r[1], r[2], r[3], r[4], r[5], r[6], r[7] or {}) for r in cur.fetchall()}
 
+    # Sugerencias que un analista ya rechazó para esta institución y base: no se vuelven a proponer
+    cur.execute(
+        """SELECT DISTINCT x.columna, x.valor_antes, x.valor_despues
+           FROM correccion x JOIN ejecucion e ON e.id = x.ejecucion_id JOIN carga c ON c.id = e.carga_id
+           WHERE x.estado = 'rechazada' AND c.tipo_base_id = %s AND c.institucion_id = %s""",
+        (tipo_base_id, institucion_id),
+    )
+    rechazos: dict[str, set[tuple[str, str]]] = {}
+    for columna, antes, despues in cur.fetchall():
+        rechazos.setdefault(columna, set()).add((normalizar(antes), str(despues)))
+
     return DefinicionBase(tipo_base_id, codigo_base, institucion_id, version_id, version, formato,
-                          variables, catalogos, reglas)
+                          variables, catalogos, reglas, rechazos)

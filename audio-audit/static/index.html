@@ -3,31 +3,32 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Transcriptor de Entrevistas — Local</title>
+  <title>Auditoría de Entrevistas ENCOVI — Local + JEV</title>
   <link rel="stylesheet" href="/static/styles.css" />
 </head>
 <body>
   <div class="page">
     <header class="header">
       <div>
-        <h1>Transcriptor de Entrevistas</h1>
-        <p class="subtitle">Transcripción en español e identificación de hablantes 100 % local en tu equipo.</p>
+        <h1>Auditoría de Entrevistas ENCOVI</h1>
+        <p class="subtitle">Transcripción en español 100 % local y evaluación de calidad con JEV (reglas A1–A2).</p>
       </div>
       <div class="status-pills" id="statusPills">
         <span class="pill pill-muted" id="gpuStatus">Comprobando equipo…</span>
-        <span class="pill pill-muted" id="hfStatus">Token HF…</span>
+        <button type="button" class="pill pill-muted pill-btn" id="hfStatus" title="Configurar token de Hugging Face">Token HF…</button>
+        <button type="button" class="pill pill-muted pill-btn" id="openrouterStatus" title="Configurar clave de OpenRouter">OpenRouter…</button>
       </div>
     </header>
 
     <main class="main">
-      <!-- Banner de configuración del token HF (se muestra solo si falta) -->
+      <!-- Banner de configuración del token HF (se muestra solo si falta o al hacer clic) -->
       <section class="card notice-card hidden" id="hfSetupCard">
         <div class="notice-header">
-          <strong>Configuración única para identificar hablantes</strong>
+          <strong>Configuración para identificar hablantes (Pyannote)</strong>
           <span class="badge-optional">Gratis · Solo se descarga una vez</span>
         </div>
         <p class="notice-text">
-          Para separar <strong>Hablante 1</strong>, <strong>Hablante 2</strong>, etc. de forma local, Pyannote requiere aceptar sus términos gratuitos en Hugging Face y pegar un token de lectura (<code>hf_…</code>). Tu audio <strong>nunca</strong> sale de tu computadora.
+          Para separar <strong>Hablante 1</strong>, <strong>Hablante 2</strong>, etc. de forma local, Pyannote requiere aceptar sus términos gratuitos en Hugging Face y configurar un token de lectura (<code>HF_TOKEN=hf_…</code>). Tu audio <strong>nunca</strong> sale de tu computadora.
         </p>
         <ol class="setup-steps">
           <li>Acepta las condiciones gratuitas en <a href="https://huggingface.co/pyannote/speaker-diarization-community-1" target="_blank" rel="noopener">pyannote/speaker-diarization-community-1</a>.</li>
@@ -35,76 +36,144 @@
         </ol>
         <div class="token-row">
           <input type="password" id="hfTokenInput" placeholder="Pega aquí tu token (hf_...)" autocomplete="off" />
-          <button type="button" class="btn btn-secondary" id="saveTokenBtn">Guardar token</button>
+          <button type="button" class="btn btn-secondary" id="saveTokenBtn">Guardar HF_TOKEN</button>
         </div>
         <p class="feedback-msg hidden" id="tokenFeedback"></p>
       </section>
 
-      <!-- Tarjeta de carga de audio -->
+      <!-- Banner de configuración de OpenRouter para JEV -->
+      <section class="card notice-card notice-blue hidden" id="openrouterSetupCard">
+        <div class="notice-header">
+          <strong>Configuración de OpenRouter para evaluación con JEV</strong>
+          <span class="badge-blue">Modelo typesafe/jev-1.14</span>
+        </div>
+        <p class="notice-text">
+          Para evaluar entrevistas con el modelo JEV real, agrega <code>OPENROUTER_API_KEY=sk-or-…</code> en tu archivo <code>.env</code> (se recarga automáticamente sin reiniciar el servidor) o guárdala aquí abajo. También puedes probar la interfaz sin clave usando el <strong>Modo prueba sin conexión</strong>.
+        </p>
+        <div class="token-row">
+          <input type="password" id="openrouterKeyInput" placeholder="Pega aquí tu clave de OpenRouter (sk-or-...)" autocomplete="off" />
+          <button type="button" class="btn btn-secondary" id="saveOpenrouterBtn">Guardar OPENROUTER_API_KEY</button>
+        </div>
+        <p class="feedback-msg hidden" id="openrouterFeedback"></p>
+      </section>
+
+      <!-- Tarjeta principal de carga (Audio o Transcripción existente) -->
       <section class="card upload-card" id="uploadCard">
-        <div class="dropzone" id="dropzone" tabindex="0" role="button" aria-label="Seleccionar o arrastrar archivo de audio">
-          <input type="file" id="audioInput" accept="audio/*,video/mp4,video/webm,.mp3,.wav,.m4a,.ogg,.flac,.aac,.opus,.wma,.mp4,.webm" hidden />
-          <div class="dropzone-icon" aria-hidden="true">
-            <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/>
-              <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
-              <line x1="12" x2="12" y1="19" y2="22"/>
-            </svg>
-          </div>
-          <p class="dropzone-title" id="dropzoneTitle">Arrastra tu audio aquí o haz clic para seleccionarlo</p>
-          <p class="dropzone-hint" id="dropzoneHint">Soporta MP3, WAV, M4A, OGG, FLAC, WEBM y MP4 · Ideal para entrevistas de 30 min a 2 horas</p>
-        </div>
-
-        <div class="file-selected hidden" id="fileSelectedBar">
-          <div class="file-info">
-            <span class="file-name" id="selectedFileName"></span>
-            <span class="file-size" id="selectedFileSize"></span>
-          </div>
-          <button type="button" class="btn-link" id="clearFileBtn">Cambiar archivo</button>
-        </div>
-
-        <div class="options-grid">
-          <div class="field">
-            <label for="speakersSelect">Número de hablantes</label>
-            <select id="speakersSelect">
-              <option value="auto" selected>Automático</option>
-              <option value="2">Exactamente 2 hablantes (entrevista 1 a 1)</option>
-              <option value="3">Exactamente 3 hablantes</option>
-              <option value="2-4">Entre 2 y 4 hablantes</option>
-              <option value="2-6">Entre 2 y 6 hablantes</option>
-            </select>
-          </div>
-
-          <div class="field">
-            <label for="modelSelect">Precisión / Velocidad</label>
-            <select id="modelSelect">
-              <option value="large-v3-turbo" selected>Recomendado — large-v3-turbo (rápido y preciso)</option>
-              <option value="medium">Más rápido — medium (para pruebas rápidas)</option>
-              <option value="large-v3">Máxima precisión — large-v3 (más lento)</option>
-            </select>
-          </div>
-        </div>
-
-        <div class="toggles-row">
-          <label class="checkbox-label">
-            <input type="checkbox" id="denoiseCheckbox" checked />
-            <span>Reducir ruido de fondo y nivelar voces (recomendado para audio difícil)</span>
-          </label>
-          <label class="checkbox-label">
-            <input type="checkbox" id="diarizeCheckbox" checked />
-            <span>Identificar hablantes (Hablante 1, Hablante 2…)</span>
-          </label>
-        </div>
-
-        <div class="actions-row">
-          <button type="button" class="btn btn-primary" id="transcribeBtn" disabled>
-            Transcribir entrevista
+        <div class="mode-tabs" role="tablist" aria-label="Fuente de la entrevista">
+          <button type="button" class="mode-tab active" id="tabAudio" role="tab" aria-selected="true">
+            1. Subir audio (transcribir local)
           </button>
-          <button type="button" class="btn-link hidden" id="toggleTokenBtn">Configurar token HF</button>
+          <button type="button" class="mode-tab" id="tabTranscript" role="tab" aria-selected="false">
+            2. Subir transcripción (.json / .txt)
+          </button>
+        </div>
+
+        <!-- Panel 1: Subir Audio -->
+        <div id="audioModePanel" role="tabpanel">
+          <div class="dropzone" id="dropzone" tabindex="0" role="button" aria-label="Seleccionar o arrastrar archivo de audio">
+            <input type="file" id="audioInput" accept="audio/*,video/mp4,video/webm,.mp3,.wav,.m4a,.ogg,.flac,.aac,.opus,.wma,.mp4,.webm" hidden />
+            <div class="dropzone-icon" aria-hidden="true">
+              <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/>
+                <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                <line x1="12" x2="12" y1="19" y2="22"/>
+              </svg>
+            </div>
+            <p class="dropzone-title" id="dropzoneTitle">Arrastra tu audio aquí o haz clic para seleccionarlo</p>
+            <p class="dropzone-hint" id="dropzoneHint">Soporta MP3, WAV, M4A, OGG, FLAC, WEBM y MP4 · Ideal para entrevistas de 30 min a 2 horas</p>
+          </div>
+
+          <div class="file-selected hidden" id="fileSelectedBar">
+            <div class="file-info">
+              <span class="file-name" id="selectedFileName"></span>
+              <span class="file-size" id="selectedFileSize"></span>
+            </div>
+            <button type="button" class="btn-link" id="clearFileBtn">Cambiar archivo</button>
+          </div>
+
+          <div class="options-grid">
+            <div class="field">
+              <label for="speakersSelect">Número de hablantes</label>
+              <select id="speakersSelect">
+                <option value="auto" selected>Automático</option>
+                <option value="2">Exactamente 2 hablantes (entrevista 1 a 1)</option>
+                <option value="3">Exactamente 3 hablantes</option>
+                <option value="2-4">Entre 2 y 4 hablantes</option>
+                <option value="2-6">Entre 2 y 6 hablantes</option>
+              </select>
+            </div>
+
+            <div class="field">
+              <label for="modelSelect">Precisión / Velocidad</label>
+              <select id="modelSelect">
+                <option value="large-v3-turbo" selected>Recomendado — large-v3-turbo (rápido y preciso)</option>
+                <option value="medium">Más rápido — medium (para pruebas rápidas)</option>
+                <option value="large-v3">Máxima precisión — large-v3 (más lento)</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="toggles-row">
+            <label class="checkbox-label">
+              <input type="checkbox" id="denoiseCheckbox" checked />
+              <span>Reducir ruido de fondo y nivelar voces (recomendado para audio difícil)</span>
+            </label>
+            <label class="checkbox-label">
+              <input type="checkbox" id="diarizeCheckbox" checked />
+              <span>Identificar hablantes (Hablante 1, Hablante 2…)</span>
+            </label>
+          </div>
+
+          <div class="actions-row">
+            <button type="button" class="btn btn-primary" id="transcribeBtn" disabled>
+              Transcribir entrevista
+            </button>
+            <div class="inline-links">
+              <button type="button" class="btn-link" id="toggleTokenBtn">Token HF</button>
+              <button type="button" class="btn-link" id="toggleOpenrouterBtn">Clave OpenRouter</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Panel 2: Subir Transcripción existente -->
+        <div id="transcriptModePanel" class="hidden" role="tabpanel">
+          <div class="dropzone" id="transcriptDropzone" tabindex="0" role="button" aria-label="Seleccionar o arrastrar archivo de transcripción">
+            <input type="file" id="transcriptInput" accept=".json,.txt,application/json,text/plain" hidden />
+            <div class="dropzone-icon" aria-hidden="true">
+              <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <polyline points="14 2 14 8 20 8"/>
+                <line x1="16" y1="13" x2="8" y2="13"/>
+                <line x1="16" y1="17" x2="8" y2="17"/>
+              </svg>
+            </div>
+            <p class="dropzone-title">Arrastra tu transcripción (.json o .txt) o haz clic para seleccionarla</p>
+            <p class="dropzone-hint">Compatible con el formato exportado por esta app, JSON de turnos o TXT con marcas de hablante</p>
+          </div>
+
+          <div class="file-selected hidden" id="transcriptFileBar">
+            <div class="file-info">
+              <span class="file-name" id="selectedTranscriptName"></span>
+              <span class="file-size" id="selectedTranscriptSize"></span>
+            </div>
+            <button type="button" class="btn-link" id="clearTranscriptBtn">Cambiar archivo</button>
+          </div>
+
+          <div class="actions-row">
+            <div class="btn-group">
+              <button type="button" class="btn btn-primary" id="uploadTranscriptBtn" disabled>
+                Cargar transcripción
+              </button>
+              <button type="button" class="btn btn-secondary" id="loadExampleBtn">
+                Cargar ejemplo ENCOVI
+              </button>
+            </div>
+            <button type="button" class="btn-link" id="toggleOpenrouterBtn2">Clave OpenRouter</button>
+          </div>
         </div>
       </section>
 
-      <!-- Tarjeta de progreso -->
+      <!-- Tarjeta de progreso de transcripción -->
       <section class="card progress-card hidden" id="progressCard" aria-live="polite">
         <div class="progress-top">
           <div>
@@ -121,14 +190,14 @@
         </p>
       </section>
 
-      <!-- Tarjeta de error -->
+      <!-- Tarjeta de error general -->
       <section class="card error-card hidden" id="errorCard" role="alert">
-        <h2>No se pudo completar la transcripción</h2>
+        <h2>No se pudo completar la operación</h2>
         <p id="errorMessage"></p>
         <button type="button" class="btn btn-secondary" id="retryBtn">Intentar de nuevo</button>
       </section>
 
-      <!-- Tarjeta de resultado -->
+      <!-- Tarjeta de resultado de transcripción + Asignación de roles y botón JEV -->
       <section class="card result-card hidden" id="resultCard">
         <div class="result-header">
           <div>
@@ -137,20 +206,127 @@
           </div>
           <div class="result-actions">
             <button type="button" class="btn btn-secondary" id="copyBtn">Copiar texto</button>
-            <button type="button" class="btn btn-primary" id="downloadBtn">Descargar .txt</button>
+            <button type="button" class="btn btn-secondary" id="downloadBtn">Descargar .txt</button>
           </div>
         </div>
 
         <div class="warning-banner hidden" id="resultWarning"></div>
+        <div class="info-banner hidden" id="resultNote"></div>
 
         <div class="audio-bar hidden" id="audioBar">
           <audio id="audioPlayer" controls preload="metadata"></audio>
-          <span class="audio-hint">Haz clic en cualquier marca de tiempo para escuchar ese fragmento.</span>
+          <span class="audio-hint">Haz clic en cualquier marca de tiempo (en la transcripción o en los riesgos JEV) para escuchar ese fragmento.</span>
+        </div>
+
+        <!-- Panel de evaluación JEV -->
+        <div class="jev-launcher" id="jevLauncher">
+          <div class="jev-launcher-head">
+            <div>
+              <h3>Evaluar entrevista con JEV (ENCOVI A1–A2)</h3>
+              <p class="jev-launcher-sub">Confirma quién es el <strong>ENCUESTADOR</strong> y quién es el <strong>INFORMANTE</strong> revisando las primeras líneas de abajo, luego ejecuta la auditoría de 51 reglas.</p>
+            </div>
+          </div>
+
+          <div class="role-mapper-grid" id="speakerRoleGrid"></div>
+
+          <div class="jev-options-row">
+            <label class="checkbox-label">
+              <input type="checkbox" id="firstContactCheckbox" checked />
+              <span>Primera visita / contacto inicial (evaluar reglas de apertura A1)</span>
+            </label>
+            <label class="checkbox-label">
+              <input type="checkbox" id="mockModeCheckbox" />
+              <span>Modo prueba sin conexión (puntajes simulados, sin usar OpenRouter)</span>
+            </label>
+          </div>
+
+          <div class="jev-launcher-actions">
+            <button type="button" class="btn btn-primary" id="evaluateBtn">
+              Evaluar con JEV
+            </button>
+            <span class="jev-running-hint hidden" id="jevRunningHint">Consultando modelo JEV en OpenRouter…</span>
+          </div>
+
+          <div class="jev-error-inline hidden" id="jevErrorInline" role="alert"></div>
         </div>
 
         <div class="speaker-legend" id="speakerLegend"></div>
 
         <div class="transcript-list" id="transcriptList"></div>
+      </section>
+
+      <!-- Tarjeta de Reporte JEV completo -->
+      <section class="card jev-report-card hidden" id="jevReportCard">
+        <div class="result-header">
+          <div>
+            <div class="report-title-row">
+              <h2>Reporte de Auditoría JEV</h2>
+              <span class="pill pill-muted" id="jevVerdictBadge"></span>
+            </div>
+            <p class="result-summary" id="jevReportMeta"></p>
+          </div>
+          <div class="result-actions">
+            <button type="button" class="btn btn-primary" id="downloadJevBtn">Descargar reporte .json</button>
+          </div>
+        </div>
+
+        <div class="warning-banner hidden" id="jevMockWarning"></div>
+
+        <!-- Resumen global + compuertas -->
+        <div class="kpi-strip" id="jevKpiStrip"></div>
+
+        <!-- Tarjetas de secciones A1 y A2 -->
+        <div class="sections-grid" id="jevSectionsGrid"></div>
+
+        <!-- Principales riesgos -->
+        <div class="report-block">
+          <div class="report-block-head">
+            <h3>Principales riesgos detectados</h3>
+            <span class="block-hint">Reglas con probabilidad de incumplimiento ≥ 30 %, ordenadas de mayor a menor</span>
+          </div>
+          <div class="risks-list" id="jevRisksList"></div>
+        </div>
+
+        <!-- Detalle completo de las 51 instrucciones -->
+        <details class="rules-details" id="jevRulesDetails">
+          <summary class="rules-summary">
+            <span>Ver detalle completo de las 51 instrucciones (A1 y A2)</span>
+            <span class="rules-count-pill" id="jevRulesCountPill">51 reglas</span>
+          </summary>
+
+          <div class="rules-controls">
+            <div class="filter-pills" id="ruleStatusFilters">
+              <button type="button" class="filter-pill active" data-filter="all">Todas</button>
+              <button type="button" class="filter-pill" data-filter="broken">Incumplimiento (≥ 70 %)</button>
+              <button type="button" class="filter-pill" data-filter="review">Revisar (30–69 %)</button>
+              <button type="button" class="filter-pill" data-filter="followed">Cumplidas</button>
+              <button type="button" class="filter-pill" data-filter="unknown">No aplica / Sin evidencia</button>
+            </div>
+            <div class="rules-secondary-filters">
+              <select id="ruleSectionFilter" aria-label="Filtrar por sección">
+                <option value="ALL">Sección: Todas (A1 y A2)</option>
+                <option value="A1">Solo A1 — Apertura</option>
+                <option value="A2">Solo A2 — Conducta y actitud</option>
+              </select>
+              <input type="search" id="ruleSearchInput" placeholder="Buscar por ID o texto…" />
+            </div>
+          </div>
+
+          <div class="rules-table-wrap">
+            <table class="rules-table">
+              <thead>
+                <tr>
+                  <th>Regla</th>
+                  <th>Tipo</th>
+                  <th>Peso</th>
+                  <th>Probabilidades (Cumplida / Incumplida / No aplica)</th>
+                  <th>Momento</th>
+                </tr>
+              </thead>
+              <tbody id="jevRulesTableBody"></tbody>
+            </table>
+          </div>
+        </details>
       </section>
     </main>
   </div>

@@ -2,6 +2,10 @@
 
 Los siguientes comandos están adaptados a la estructura reorganizada y a Windows PowerShell. No se han ejecutado en una instalación limpia. Trabajar con una copia clonada del repositorio y permisos de acceso vigentes.
 
+## Plataforma completa (API unificada)
+
+Para correr todos los módulos juntos, como en el despliegue, ver [interfaz integrada](interfaz.md#procesamiento-real-api-unificada); para publicarlos en Vercel y Supabase, ver [despliegue](deployment.md). Las secciones siguientes describen cada módulo por separado.
+
 ## Audio Audit
 
 Instalar Python compatible con el entorno del equipo (versión exacta pendiente), FFmpeg/FFprobe en PATH y controlador NVIDIA compatible con los paquetes CUDA 12.8 si se usará GPU. Verificar:

@@ -1,0 +1,19 @@
+# Dependencias de la API unificada (api/index.py) en Vercel y en local.
+# Reúne: audio-audit/requirements.txt, data-audit/qa_bases_datos/backend/requirements.txt
+# e interfaz/backend/requirements-extensions.txt. La transcripción local con GPU
+# (audio-audit/requirements-local.txt) no se instala aquí.
+fastapi>=0.115.0,<1
+uvicorn>=0.32.0,<1
+pydantic>=2.7.0
+python-multipart>=0.0.18
+python-dotenv>=1.0.1
+requests>=2.31.0
+psycopg[binary]>=3.2
+openpyxl>=3.1
+pandas>=2.2
+PyYAML>=6.0
+python-calamine>=0.3
+rapidfuzz>=3.9
+XlsxWriter>=3.2
+anthropic>=0.80
+pypdf>=5.0

@@ -38,7 +38,8 @@ def transaction():
         import psycopg
         from psycopg.types.json import Jsonb
         try:
-            with psycopg.connect(dsn) as con, con.cursor() as cur:
+            # prepare_threshold=None: compatible con el pooler de Supabase (modo transacción).
+            with psycopg.connect(dsn, prepare_threshold=None) as con, con.cursor() as cur:
                 cur.execute('SELECT data FROM quality_extensions.state WHERE id=1 FOR UPDATE')
                 row = cur.fetchone()
                 if not row:

@@ -290,8 +290,15 @@ def _codificar(ctx: Contexto, v, codificador: Codificador):
                     sug.justificacion += f", dentro de {etq_dep.etiqueta if etq_dep else padre}"
                     sugeridas[t] = sug
         else:
+            # Texto libre (codificar_ia): el codificador configurado (IA o similitud).
+            # Valor fuera de catálogo en una columna de códigos: solo similitud (errores de escritura).
+            quien = codificador if es_ia else CodificadorSimilitud()
             textos = [t for t in desconocidos if normalizar(t) not in cat.pendientes]
-            sugeridas = codificador.sugerir(cat, textos) if textos else {}
+            if es_ia and textos:
+                avisar_ia = getattr(ctx, "avisar", None)
+                if avisar_ia:
+                    avisar_ia(f"Codificando {len(textos):,} textos de {v.nombre}…", 60)
+            sugeridas = quien.sugerir(cat, textos) if textos else {}
         for t in desconocidos:
             if normalizar(t) in cat.pendientes:
                 cod, eid, conf = cat.pendientes[normalizar(t)]
@@ -303,8 +310,11 @@ def _codificar(ctx: Contexto, v, codificador: Codificador):
         else:
             detalle = ", ".join(f"\"{t}\"" for t in orden[:5]) + (" y otros" if len(orden) > 5 else "")
         ctx.hallazgo(regla_desc, mascara, columna=v.nombre, detalle=detalle, valores=s)
+        rechazadas = d.rechazos.get(v.nombre, set())
         for t in orden:
             sug = sugeridas.get(t)
+            if sug and (normalizar(t), str(sug.codigo)) in rechazadas:
+                continue
             if sug and (minimo is None or sug.confianza >= float(minimo)):
                 ctx.cambio(regla_desc, v.nombre, t, sug.codigo, len(desconocidos[t]), desconocidos[t][0],
                            origen="ia" if es_ia else "regla", estado="pendiente",
@@ -404,12 +414,16 @@ def _puntaje(d: DefinicionBase, hallazgos: list[dict], total: int, n_columnas: i
 
 # ---------------------------------------------------------------------------
 def procesar(ruta: str | Path, d: DefinicionBase, anio: int | None = None, mes: int | None = None,
-             codificador: Codificador | None = None) -> Resultado:
+             codificador: Codificador | None = None, progreso=None) -> Resultado:
+    """`progreso(etapa, porcentaje)` es opcional: la API lo usa para mostrar el avance."""
     t0 = time.time()
-    codificador = codificador or CodificadorSimilitud()
+    avisar = progreso or (lambda etapa, pct: None)
+    codificador = codificador or CodificadorSimilitud(minimo=0.8)
+    avisar("Leyendo el archivo…", 10)
     lectura = leer(ruta, d.formato_crudo)
     raw = lectura.df.reset_index(drop=True)
     ctx = Contexto(d, raw, anio, mes)
+    ctx.avisar = avisar
     r = d.reglas
 
     # 1. Estructura detectada al leer
@@ -435,6 +449,7 @@ def procesar(ruta: str | Path, d: DefinicionBase, anio: int | None = None, mes: 
         fuentes[var.nombre].append(c)
         usadas.append(c)
 
+    avisar("Limpiando y emparejando columnas…", 25)
     # 3. Limpieza de las columnas que alimentan la salida o las reglas (las demás no se tocan)
     relevantes = {c for v in d.publicadas() for c in fuentes.get(v.nombre, [])}
     for v in d.publicadas():
@@ -448,7 +463,9 @@ def procesar(ruta: str | Path, d: DefinicionBase, anio: int | None = None, mes: 
     _limpiar(ctx, [c for c in usadas if c in relevantes])
 
     # 4. Construir las columnas del INE
+    avisar("Calculando las columnas del INE…", 40)
     _construir(ctx, fuentes)
+    avisar("Codificando y validando valores…", 55)
 
     # 5-6. Codificar y validar cada variable publicada
     for v in d.publicadas():
@@ -456,6 +473,7 @@ def procesar(ruta: str | Path, d: DefinicionBase, anio: int | None = None, mes: 
             _codificar(ctx, v, codificador)
         _validar(ctx, v)
 
+    avisar("Aplicando reglas de la base…", 80)
     # 7. Reglas específicas y llave única
     for codigo, regla in r.items():
         if codigo in ESPECIFICAS:

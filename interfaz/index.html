@@ -8,6 +8,21 @@
   <title>Quality Audit · Data Engineers</title>
 </head>
 <body>
+  <section id="login" class="login-screen" aria-labelledby="loginTitle" hidden>
+    <form id="loginForm" class="card login-card">
+      <span class="brand-mark" aria-hidden="true">Q</span>
+      <p class="eyebrow">QUALITY AUDIT · DATA ENGINEERS</p>
+      <h1 id="loginTitle">Inicia sesión</h1>
+      <p class="muted">Usa la cuenta que te asignó el equipo. Datatón INE Guatemala.</p>
+      <label for="loginEmail">Correo</label>
+      <input id="loginEmail" type="email" autocomplete="username" required>
+      <label for="loginPassword">Contraseña</label>
+      <input id="loginPassword" type="password" autocomplete="current-password" required>
+      <button id="loginSubmit" class="button primary" type="submit">Entrar</button>
+      <p id="loginStatus" class="status" role="status" aria-live="polite"></p>
+    </form>
+  </section>
+  <div id="app" hidden>
   <a class="skip-link" href="#contenido">Saltar al contenido</a>
   <aside class="sidebar">
     <a class="brand" href="#inicio"><span class="brand-mark" aria-hidden="true">Q</span><span>Quality Audit<small>DATA ENGINEERS</small></span></a>
@@ -20,7 +35,7 @@
     <div class="sidebar-bottom"><span class="team-icon" aria-hidden="true">DE</span><div>Data Engineers<small>Datatón INE Guatemala</small></div></div>
   </aside>
   <div class="workspace">
-    <header class="topbar"><span>Plataforma de calidad de información</span><span id="modeBadge" class="badge"></span></header>
+    <header class="topbar"><span>Plataforma de calidad de información</span><span class="session"><span id="userEmail" class="muted"></span><span id="modeBadge" class="badge"></span><button id="logout" class="text-button" type="button" hidden>Cerrar sesión</button></span></header>
     <main id="contenido" tabindex="-1">
       <div id="demoNotice" class="demo-notice" hidden><strong>Modo demostración</strong><span>Los resultados son ejemplos. Los archivos seleccionados permanecen en tu navegador.</span></div>
       <section id="inicio" class="page" aria-labelledby="inicioTitle">
@@ -37,7 +52,7 @@
         <p class="eyebrow">QUALITY AUDIT / ENTREVISTAS</p><h1 id="audioTitle" tabindex="-1">Audio Audit</h1><p class="lead">De una conversación a un texto que puedes revisar.</p>
         <div class="editor-grid"><form id="audioForm" class="card">
           <div class="card-heading"><h2>Nueva transcripción</h2><span class="label">AUDIO</span></div>
-          <label class="dropzone" for="audioFile"><span class="upload-symbol" aria-hidden="true">♫</span><strong>Selecciona una entrevista</strong><span>MP3, WAV, M4A, OGG, FLAC, AAC, OPUS o WEBM · Hasta 500 MB</span><input id="audioFile" type="file" accept="audio/*,.mp3,.wav,.m4a,.ogg,.flac,.aac,.opus,.webm" required></label><p id="audioFileInfo" class="file-info">Ningún archivo seleccionado.</p>
+          <label class="dropzone" for="audioFile"><span class="upload-symbol" aria-hidden="true">♫</span><strong>Selecciona una entrevista</strong><span>MP3, WAV, M4A, OGG, FLAC, AAC, OPUS o WEBM · Hasta <span id="audioMax">50</span> MB</span><input id="audioFile" type="file" accept="audio/*,.mp3,.wav,.m4a,.ogg,.flac,.aac,.opus,.webm" required></label><p id="audioFileInfo" class="file-info">Ningún archivo seleccionado.</p>
           <label for="model">Modelo de transcripción</label><select id="model"><option value="large-v3-turbo">Equilibrado · large-v3-turbo</option><option value="medium">Prueba rápida · medium</option><option value="large-v3">Mayor precisión · large-v3</option></select>
           <label for="speakers">Número de hablantes</label><select id="speakers"><option value="auto">Detectar automáticamente</option><option value="2">Dos personas</option><option value="3">Tres personas</option><option value="2-4">Entre dos y cuatro personas</option></select>
           <label class="check"><input type="checkbox" id="denoise" checked><span>Reducir ruido de fondo</span></label><label class="check"><input type="checkbox" id="diarize"><span>Identificar hablantes</span></label>
@@ -51,13 +66,14 @@
         <div class="editor-grid"><form id="dataForm" class="card"><div class="card-heading"><h2>Nueva auditoría</h2><span class="label">DATOS</span></div>
           <label for="base">Base institucional</label><select id="base" required disabled><option value="">Cargando bases…</option></select><button id="retryBases" class="text-button" type="button" hidden>Volver a cargar bases</button><p id="basesStatus" class="status" role="status"></p>
           <div class="fields"><div><label for="year">Año de referencia</label><input id="year" type="number" min="1900" max="2100" required></div><div><label for="month">Mes</label><select id="month" required></select></div></div>
-          <label class="dropzone" for="dataFile"><span class="upload-symbol" aria-hidden="true">▦</span><strong>Selecciona la base de datos</strong><span>XLSX, XLS o CSV · Hasta 100 MB</span><input id="dataFile" type="file" accept=".xlsx,.xls,.csv" required></label><p id="dataFileInfo" class="file-info">Ningún archivo seleccionado.</p>
+          <label class="dropzone" for="dataFile"><span class="upload-symbol" aria-hidden="true">▦</span><strong>Selecciona la base de datos</strong><span>XLSX, XLS o CSV · Hasta <span id="dataMax">50</span> MB</span><input id="dataFile" type="file" accept=".xlsx,.xls,.csv" required></label><p id="dataFileInfo" class="file-info">Ningún archivo seleccionado.</p>
           <div class="form-actions"><button id="dataSubmit" class="button primary teal-button" type="submit" disabled>Auditar base</button><button id="dataCancel" class="button secondary" type="button" hidden>Dejar de esperar</button></div><p id="dataStatus" class="status" role="status" aria-live="polite"></p>
         </form><aside class="card context-card"><span class="eyebrow">QUÉ VAS A OBTENER</span><h2>Calidad que puedes explorar.</h2><h3>Panorama de la base</h3><p>Registros recibidos, válidos y excluidos, junto con una puntuación global.</p><h3>Dimensiones de calidad</h3><p>Identifica dónde concentrar la revisión del equipo.</p><h3>Hallazgos y evidencia</h3><p>Consulta las observaciones y descarga los archivos disponibles.</p><p class="context-note">Las sugerencias requieren revisión técnica antes de su aprobación.</p></aside></div>
         <section id="dataResult" class="card results" aria-labelledby="dataResultHeading" hidden><div class="card-heading"><div><span class="eyebrow">RESULTADOS</span><h2 id="dataResultHeading">Resumen de calidad</h2></div><button id="downloadReport" class="button secondary" type="button">Descargar resumen JSON</button></div><p id="reportContext" class="muted"></p><div id="metrics" class="metrics"></div><h3>Dimensiones de calidad</h3><div id="dimensions" class="dimensions"></div><div class="card-heading"><h3>Hallazgos</h3><label class="inline-label" for="severity">Mostrar<select id="severity" aria-label="Filtrar hallazgos por severidad"><option value="all">Todos</option><option value="error">Errores</option><option value="advertencia">Advertencias</option><option value="info">Informativos</option></select></label></div><div id="findings" class="table-wrap"></div><div id="downloads" class="downloads"></div></section>
       </section>
     </main>
     <footer><span>Quality Audit · Data Engineers</span><span>Información con calidad, decisiones con respaldo.</span></footer>
+  </div>
   </div>
   <script type="module" src="/src/main.ts"></script>
 </body>

@@ -1,62 +1,41 @@
 # Quality Audit · Interfaz integrada
 
-Este módulo ya está ubicado en interfaz/, junto a audio-audit/ y data-audit/. Incluye el frontend corregido, proxy local y un adaptador HTTP que utiliza el motor Data Audit original.
+Frontend (Vite + TypeScript) de la plataforma: login, Audio Audit, Data Audit, Survey Audit y Quality Improvement. Habla con la **API unificada** de la raíz del repositorio (`api/index.py`), que reúne los backends de `audio-audit/`, `data-audit/` e `interfaz/backend/extensions`.
 
-## Demostración
+En producción se publica junto con la API en un solo proyecto de Vercel: ver [despliegue](../documentation/deployment.md).
 
-Requiere Node.js 20.19+ o 22.12+ y npm. Desde esta carpeta, en PowerShell:
+## Demostración (sin backend)
+
+Requiere Node.js 20.19+ o 22.12+ y npm. Desde esta carpeta:
 
 ```powershell
-Copy-Item .env.example .env
+Copy-Item .env.example .env.local
+# en .env.local: VITE_APP_MODE=demo
 npm ci
 npm run dev
 ```
 
-Abre la dirección que muestre Vite. En modo demo los archivos permanecen en el navegador y las cifras y transcripciones son ejemplos. examples/ contiene un CSV ficticio y un segundo de silencio; no sirven para validar el motor real.
+En modo demo los archivos permanecen en el navegador y las cifras y transcripciones son ejemplos.
 
-## Integración real
+## Con la API unificada (local)
 
-Edita .env y reinicia Vite:
+1. En la raíz del repositorio: copiar `.env.example` a `.env`, instalar `requirements.txt` y arrancar la API:
 
-```dotenv
-VITE_APP_MODE=api
-VITE_AUDIO_API_URL=/audio-service
-VITE_DATA_API_URL=/
-AUDIO_BACKEND_URL=http://127.0.0.1:8000
-DATA_BACKEND_URL=http://127.0.0.1:8001
-DATABASE_URL=postgresql://usuario:clave@127.0.0.1:5432/quality_audit
-```
+   ```powershell
+   .\.venv\Scripts\python.exe -m uvicorn api.index:app --port 8000 --reload
+   ```
 
-DATABASE_URL solo la lee Python. No antepongas VITE_ a secretos. El proxy evita solicitudes entre orígenes sin modificar Audio Audit.
+2. En esta carpeta: copiar `.env.example` a `.env.local` con `VITE_APP_MODE=api` y `npm run dev`. Vite envía `/api/*` al puerto 8000.
 
-Terminal 1, desde la raíz del repositorio: instala primero Audio Audit según su README (Python, FFmpeg, modelos y dependencias). Después:
+Con `VITE_SUPABASE_URL` y `VITE_SUPABASE_ANON_KEY` la interfaz pide iniciar sesión con Supabase Auth y envía el token en cada llamada. Sin ellas (y sin Supabase en la API) no hay login y todo queda en `localhost`.
 
-```powershell
-cd audio-audit
-.\.venv\Scripts\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8000
-```
+## Flujos
 
-Si activas identificación de hablantes, configura antes el token en la interfaz original http://127.0.0.1:8000 y acepta las condiciones del modelo de diarización.
+- **Data Audit:** `POST /api/qa/cargas/subida` → el navegador sube el archivo (directo a Supabase Storage con URL firmada, o a la API en local) → `POST /api/qa/cargas/{id}/procesar` devuelve el reporte. Las descargas pasan por la API, que entrega una URL firmada de corta duración.
+- **Audio Audit:** `POST /api/storage/upload-url` → subida directa a Storage → `POST /api/transcribe/cloud` → consulta de `/api/jobs/{id}`. Sin Supabase Storage, usa `POST /api/transcribe` (WhisperX local).
+- **Survey Audit y Quality Improvement:** `/api/surveys/*` y `/api/improvement/*`.
 
-Terminal 2, desde interfaz/: necesita Python 3.11+, PostgreSQL y esquema, configuración y diccionarios cargados según documentation/installation.md del repositorio.
-
-```powershell
-py -3 -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -r ..\data-audit\qa_bases_datos\backend\requirements.txt -r backend\requirements.txt
-.\.venv\Scripts\python.exe -m uvicorn backend.main:app --host 127.0.0.1 --port 8001
-```
-
-El adaptador importa qa/ del motor original. Si está en otra ubicación configura DATA_ENGINE_PATH en .env con la ruta absoluta a backend/ que contiene qa/.
-
-Terminal 3, desde interfaz/:
-
-```powershell
-npm run dev
-```
-
-El catálogo muestra bases con versiones activas. El adaptador ejecuta las reglas originales y genera corregido.xlsx, bitacora.xlsx y reporte.json en backend/almacen/. No registra cargas ni aprobaciones en PostgreSQL. Admite una auditoría simultánea por proceso; utiliza un solo worker. Una conexión fallida muestra un error y no activa resultados ficticios.
-
-## Compilar y revisar
+## Compilar
 
 ```powershell
 npm run typecheck
@@ -64,14 +43,6 @@ npm run build
 npm run preview
 ```
 
-El resultado se genera en dist/. La vista previa local usa el mismo proxy. Publicar solo dist/ requiere configurar en el alojamiento las rutas /audio-service y /data-api hacia los servicios; el proxy Vite no se incluye en los archivos estáticos.
+`preview` usa el mismo proxy a la API. Los límites de tamaño que valida la interfaz se ajustan con `VITE_MAX_AUDIO_MB` y `VITE_MAX_DATA_MB` (por defecto 50, el máximo por archivo del plan gratuito de Supabase).
 
-## Alcance
-
-Uso local: el adaptador no tiene autenticación. Los archivos recibidos y las salidas permanecen en backend/almacen/ hasta que el responsable los retire según su política. Dejar de esperar no cancela el trabajo del servidor. El adaptador aplica un límite de 100 MB a datos; la interfaz permite hasta 500 MB de audio.
-
-El .gitignore excluye .env, .venv/, node_modules/, dist/ y backend/almacen/. No agregues entradas reales a Git.
-
-La compilación se comprueba en esta entrega. Python, PostgreSQL, transcripción y diarización necesitan verificación en el equipo que tenga instalados los motores. No se realizaron pruebas de navegador ni se ejecutó el adaptador Python en este entorno.
-
-Documentación general: [instalación y operación integrada](../documentation/interfaz.md).
+Documentación general: [instalación y operación integrada](../documentation/interfaz.md) · [contrato de API](docs/API.md).
