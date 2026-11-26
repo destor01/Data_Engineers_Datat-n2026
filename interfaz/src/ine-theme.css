@@ -1,0 +1,18 @@
+/* Manual INE 2025: páginas PDF 35, 36 y 39-41. Fuentes locales, sin peticiones remotas. */
+:root { --ine-radiant: #0080ff; --ine-dark: #004080; --ine-white: #fff;
+  --blue: var(--ine-dark); --teal: var(--ine-dark);
+  font-family: 'Ubuntu Sans', 'Segoe UI', sans-serif; }
+body, button, input, select, textarea, h1, h2, h3, .metric strong {
+  font-family: 'Ubuntu Sans', 'Segoe UI', sans-serif;
+}
+.sidebar { background: var(--ine-dark); }
+.brand-mark { background: var(--ine-white); color: var(--ine-dark); }
+.sidebar a.active { background: #ffffff20; box-shadow: inset 3px 0 var(--ine-radiant); }
+.primary { background: var(--ine-dark); }
+.primary:hover { background: #003366; }
+h1, h2, h3 { color: var(--ine-dark); }
+.blue, .teal { background: #e6f2ff; color: var(--ine-dark); }
+:focus-visible { outline: 3px solid var(--ine-radiant); outline-offset: 3px; }
+textarea, input[type=text] { width: 100%; padding: 12px; border: 1px solid #9bb6d0; border-radius: 6px; }
+.pilot-note { border-left: 4px solid var(--ine-radiant); padding: 12px 16px; background: #eef6ff; }
+nav { flex-wrap: wrap; }

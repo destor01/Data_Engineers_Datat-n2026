@@ -4,3 +4,8 @@ __pycache__/
 .env
 uploads/
 *.log
+.runtime/
+node_modules/
+dist/
+almacen/
+.pytest_cache/
