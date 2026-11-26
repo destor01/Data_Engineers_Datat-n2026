@@ -74,6 +74,4 @@ Los diccionarios oficiales del INE no están en el repositorio: la organización
 | Sin llaves en el repositorio | `git log -p --all \| grep -iE "sk-ant-[a-z0-9]{10}"` (no devuelve llaves reales) |
 | Control de acceso de la API de audio | `python audio-audit/tests/check_security.py` |
 
-## 6. Lo que no se pudo medir
 
-Exactitud de transcripción (WER), diarización (DER), evaluación JEV, extracción del PDF y conciliación: no hubo grabaciones reales autorizadas ni referencias etiquetadas. Se explica en [testing.md](testing.md#lo-que-no-se-midió-y-cómo-medirlo) con el protocolo para medirlas.
