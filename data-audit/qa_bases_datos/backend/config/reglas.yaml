@@ -112,7 +112,7 @@ reglas:
     severidad: advertencia
     accion: sugerir
     parametros:
-      confianza_minima: 0.8
+      confianza_minima: 0.6       # la similitud de texto ya filtra en 0.8; la IA puede proponer con confianza media
     mensaje: "{n} registros de {columna} tienen texto libre sin código aprobado ({detalle} textos distintos); hay sugerencias para revisar."
 
   GEN_TIPO:

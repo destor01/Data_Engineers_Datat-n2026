@@ -16,8 +16,10 @@ import uuid
 from pathlib import Path
 
 import psycopg
+from dotenv import load_dotenv
 
 from .definicion import cargar_definicion
+from .codificador_ia import crear_codificador
 from .motor import procesar
 from .salidas import crear_carga, escribir_archivos, guardar_en_bd, hallazgos_ordenados, usuario_sistema
 
@@ -41,7 +43,11 @@ def cmd_procesar(con, args):
         if d.codigo != "CALIDAD_AIRE" and args.mes is None and d.codigo in ("DEFUNCIONES", "NACIMIENTOS", "DETENIDOS"):
             print("Aviso: base mensual sin --mes; las reglas de período solo revisan el año.")
         print(f"Procesando {ruta.name} como {d.codigo} (versión {d.version})...")
-        r = procesar(ruta, d, args.anio, args.mes)
+        codificador = crear_codificador()
+        print(f"Codificador: {getattr(codificador, 'nombre', 'similitud')}")
+        r = procesar(ruta, d, args.anio, args.mes, codificador=codificador)
+        if hasattr(codificador, 'estadisticas'):
+            print(f"IA: {codificador.estadisticas}")
 
         if args.sin_guardar:
             carga_id = f"prueba-{uuid.uuid4().hex[:8]}"
@@ -79,6 +85,7 @@ def cmd_procesar(con, args):
 
 
 def main():
+    load_dotenv(Path(__file__).resolve().parents[2] / ".env", override=False)
     ap = argparse.ArgumentParser(prog="qa", description="Motor de validación Quality Audit")
     ap.add_argument("--db", default=os.environ.get("DATABASE_URL"))
     sub = ap.add_subparsers(dest="cmd", required=True)

@@ -47,26 +47,38 @@ class CodificadorSimilitud:
         self.minimo = minimo
 
     def sugerir(self, catalogo: Catalogo, textos: list[str], contexto=None) -> dict[str, Sugerencia]:
-        opciones: dict[str, tuple[str, str]] = {}          # texto normalizado -> (código, etiqueta mostrada)
+        # Dos fuentes: las etiquetas oficiales y los textos ya aprobados (equivalencias).
+        # Un texto aprobado solo se usa si es casi idéntico (>= 90 %): "PORTACION ILEGALL DE ARMA"
+        # sí, pero "TRASLADO ILEGAL DE ARMA" no debe heredar el código de "PORTACION ILEGAL DE ARMA".
+        oficiales: dict[str, tuple[str, str]] = {}
         for cod, v in catalogo.valores.items():
             if not v.ignorado:
-                opciones[normalizar(v.etiqueta)] = (cod, v.etiqueta)
+                oficiales[normalizar(v.etiqueta)] = (cod, v.etiqueta)
+        aprobados: dict[str, tuple[str, str]] = {}
         for texto, (cod, _) in catalogo.equivalencias.items():
-            if cod in catalogo.valores:
-                opciones.setdefault(texto, (cod, catalogo.valores[cod].etiqueta))
-        claves = list(opciones)
+            if cod in catalogo.valores and texto not in oficiales:
+                aprobados[texto] = (cod, catalogo.valores[cod].etiqueta)
         salida = {}
         for t in textos:
             n = normalizar(t)
-            if not n or not claves:
+            if not n:
                 continue
-            mejor = process.extractOne(n, claves, scorer=fuzz.ratio)
-            if not mejor:
+            candidatos = []
+            if oficiales:
+                m = process.extractOne(n, list(oficiales), scorer=fuzz.ratio)
+                if m:
+                    cod, etq = oficiales[m[0]]
+                    candidatos.append((m[1], cod, f"Se parece a \"{etq}\" (similitud {m[1]:.0f} %)"))
+            if aprobados:
+                m = process.extractOne(n, list(aprobados), scorer=fuzz.ratio)
+                if m and m[1] >= 90:
+                    cod, etq = aprobados[m[0]]
+                    candidatos.append((m[1], cod, f"Casi igual a \"{m[0]}\", ya aprobado como {etq} "
+                                                  f"(similitud {m[1]:.0f} %)"))
+            if not candidatos:
                 continue
-            clave, puntaje, _ = mejor
+            puntaje, cod, por_que = max(candidatos)
             conf = round(puntaje / 100, 3)
-            if conf < self.minimo:
-                continue
-            cod, etq = opciones[clave]
-            salida[t] = Sugerencia(cod, conf, f"Se parece a \"{etq}\" (similitud {puntaje:.0f} %)")
+            if conf >= self.minimo:
+                salida[t] = Sugerencia(cod, conf, por_que)
         return salida
