@@ -12,7 +12,6 @@
 
 | Uso | Correo | Contraseña |
 |---|---|---|
-
 | Equipo Data Engineers |pruebas@dataton.com |Dataton2026 |
 
 ## Crear o cambiar una cuenta
