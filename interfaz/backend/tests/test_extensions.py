@@ -67,6 +67,60 @@ class Base(unittest.TestCase):
         self.folder.cleanup()
 
 
+TABLA = dict(orden=2, codigo='J', seccion='Sección J. Equipamiento del hogar', pagina=6,
+             filas=[dict(codigo='1-01', texto='estufa'), dict(codigo='1-02', texto='refrigeradora')],
+             columnas=[dict(codigo='1', texto='¿El hogar posee, tiene o cuenta con (...)?', tipo='opcion_unica',
+                            opciones=[dict(codigo='1', texto='Sí'), dict(codigo='2', texto='No', pase_a=dict(tipo='siguiente_fila', referencia=''))]),
+                       dict(codigo='2', texto='¿Cuántos(as) (...) tiene este hogar?', tipo='entero', opciones=[])])
+
+
+class LecturaPorZonasTests(Base):
+    def test_tabla_y_zonas(self):
+        from extensions import cuestionario
+        r = cuestionario.expandir_tablas(dict(preguntas=[dict(orden=1, texto='antes'), dict(orden=3, texto='después')], tablas=[TABLA]))
+        self.assertEqual([p['texto'] for p in r], ['antes', '¿El hogar posee, tiene o cuenta con estufa?', '¿Cuántos(as) estufa tiene este hogar?',
+                                                   '¿El hogar posee, tiene o cuenta con refrigeradora?', '¿Cuántos(as) refrigeradora tiene este hogar?', 'después'])
+        self.assertEqual(r[1]['opciones'][1]['pase_a'], {'tipo': 'pregunta', 'referencia': 'J-1-02-1'})
+        self.assertEqual(r[3]['opciones'][1]['pase_a']['tipo'], 'ninguno')  # última fila
+
+        c = self.client
+        llamadas = []
+
+        def falso(model, sistema, contenido, esquema, max_tokens):
+            texto = contenido[1]['text']
+            llamadas.append(texto[-60:])
+            if 'página 2' in texto and 'partes' not in texto:
+                raise ia.IARespuestaLarga('larga')
+            if 'la mitad inferior' in texto or 'el último cuarto' in texto:
+                raise ia.IARespuestaLarga('larga')
+            pagina = int(re.search(r'página (\d+)', texto).group(1)) if 'partes' in texto else int(re.search(r'páginas (\d+)', texto).group(1))
+            zona = re.search(r'Extrae SOLO lo que está en (.+?) de la página', texto)
+            return dict(secciones=[dict(titulo='Sección A', alcance='hogar')], catalogos=[], tablas=[],
+                        preguntas=[dict(orden=1, codigo=str(pagina), seccion='Sección A', texto=f'Pregunta {pagina} {zona.group(1) if zona else ""}',
+                                        tipo='texto', obligatoria=True, opciones=[], pagina=pagina)])
+        ia.responder = falso
+        os.environ['SURVEY_PAGINAS_BLOQUE'] = '1'
+        d = c.post('/api/surveys/documents', json={'nombre': 'Zonas', 'archivo': 'c.pdf', 'tamano': 900}).json()
+        did = d['documento']['id']
+        c.put(d['subida']['url'], content=pdf_prueba(2))
+        c.post(f'/api/surveys/documents/{did}/preparar')
+        leer = lambda **b: c.post(f'/api/surveys/documents/{did}/leer', json=b)
+        self.assertEqual(leer(desde=1, hasta=1).status_code, 200)
+        self.assertTrue(leer(desde=2, hasta=2).json()['dividir'])
+        self.assertEqual(leer(desde=2, hasta=2, parte=1, de=2).status_code, 200)
+        self.assertTrue(leer(desde=2, hasta=2, parte=2, de=2).json()['dividir'])
+        self.assertEqual(leer(desde=2, hasta=2, parte=3, de=4).status_code, 200)
+        doc = next(x for x in c.get('/api/surveys/documents').json() if x['id'] == did)
+        self.assertEqual(doc['rangos'], [[1, 1]])  # la página 2 todavía no está completa
+        self.assertNotEqual(c.post(f'/api/surveys/documents/{did}/formulario').status_code, 200)
+        self.assertEqual(leer(desde=2, hasta=2, parte=4, de=4).status_code, 200)  # último recurso: marcador
+        t = c.post(f'/api/surveys/documents/{did}/formulario').json()
+        textos = [q['label'] for q in t['schema']['questions']]
+        self.assertEqual(textos[:3], ['Pregunta 1', 'Pregunta 2 la mitad superior', 'Pregunta 2 el tercer cuarto'])
+        marcador = t['schema']['questions'][3]
+        self.assertIn('último cuarto', marcador['alertas'][0])
+
+
 class SurveyTests(Base):
     def formulario(self):
         c = self.client

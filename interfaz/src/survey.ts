@@ -13,7 +13,8 @@ type Seccion = { id: string; label: string; scope?: 'household' | 'person'; info
 type Schema = { schema_version: number; template_code: string; nombre?: string; version: number; sections: Seccion[]; questions: Pregunta[]; origen?: { archivo?: string; paginas?: number } };
 type Template = { id: string; status: 'draft' | 'published'; revision: number; schema: Schema };
 type TemplateResumen = { id: string; status: 'draft' | 'published'; nombre: string; version: number; preguntas: number; secciones: number; alertas: number; created_at: string; origen?: { archivo?: string; paginas?: number } };
-type Documento = { id: string; nombre: string; archivo: string; estado: string; paginas: number | null; bloques: { desde: number; hasta: number }[]; rangos?: [number, number][]; creado_en: string };
+type Documento = { id: string; nombre: string; archivo: string; estado: string; paginas: number | null; bloques: { desde: number; hasta: number }[]; rangos?: [number, number][]; partes?: [number, number, number][]; creado_en: string };
+type Lectura = { desde: number; hasta: number; parte?: number; de?: number };
 type Turno = { id: number; speaker: string; text: string; start: number; end: number };
 type Hallazgo = {
   id: string; clave: string; codigo: string; persona: number | null; pregunta: string; registrada: string; escuchada: string;
@@ -131,7 +132,26 @@ export function mountSurvey(page: HTMLElement): void {
     const total = doc.paginas ?? 0;
     const leidas = new Set<number>();
     for (const [d, hasta] of doc.rangos ?? []) for (let p = d; p <= hasta; p++) leidas.add(p);
-    const cola = doc.bloques.filter(b => !Array.from({ length: b.hasta - b.desde + 1 }, (_, i) => b.desde + i).every(p => leidas.has(p)));
+    // Páginas que se estaban leyendo por partes: solo se piden las partes que faltan.
+    const hechas = new Set((doc.partes ?? []).map(([p, parte, de]) => `${p}#${parte}/${de}`));
+    const conPartes = new Set((doc.partes ?? []).map(([p]) => p).filter(p => !leidas.has(p)));
+    const cola: Lectura[] = [];
+    for (const b of doc.bloques) {
+      const paginas = Array.from({ length: b.hasta - b.desde + 1 }, (_, i) => b.desde + i).filter(p => !leidas.has(p));
+      if (!paginas.length) continue;
+      if (paginas.length === b.hasta - b.desde + 1 && !paginas.some(p => conPartes.has(p))) { cola.push(b); continue; }
+      for (const p of paginas) {
+        if (!conPartes.has(p)) { cola.push({ desde: p, hasta: p }); continue; }
+        for (const m of [1, 2]) {
+          const cuartos = [2 * m - 1, 2 * m];
+          if (hechas.has(`${p}#${m}/2`) || cuartos.every(c => hechas.has(`${p}#${c}/4`))) continue;
+          if (cuartos.some(c => hechas.has(`${p}#${c}/4`))) cuartos.filter(c => !hechas.has(`${p}#${c}/4`)).forEach(c => cola.push({ desde: p, hasta: p, parte: c, de: 4 }));
+          else cola.push({ desde: p, hasta: p, parte: m, de: 2 });
+        }
+      }
+    }
+    const partesListas = new Map<number, number>();  // página → avance por zonas (mitad = 2, cuarto = 1; 4 = completa)
+    for (const [p, , de] of doc.partes ?? []) if (conPartes.has(p)) partesListas.set(p, (partesListas.get(p) ?? 0) + (de === 4 ? 1 : 2));
     const avisar = () => progreso(`Leyendo el cuestionario: ${leidas.size} de ${total} páginas listas…`, total ? leidas.size / total * 100 : 0);
     avisar();
     let fallo: Error | null = null;
@@ -141,12 +161,20 @@ export function mountSurvey(page: HTMLElement): void {
         for (let intento = 0; ; intento++) {
           try {
             await api(`surveys/documents/${doc.id}/leer`, 'POST', b, 290_000);
-            for (let p = b.desde; p <= b.hasta; p++) leidas.add(p);
+            if (b.parte) {
+              // La página cuenta como lista cuando se completan sus zonas (2 mitades, o cuartos en su lugar).
+              const n = (partesListas.get(b.desde) ?? 0) + (b.de === 4 ? 1 : 2);
+              partesListas.set(b.desde, n);
+              if (n >= 4 && !cola.some(x => x.desde === b.desde)) leidas.add(b.desde);
+            } else for (let p = b.desde; p <= b.hasta; p++) leidas.add(p);
             avisar();
             break;
           } catch (error) {
-            if (error instanceof ApiError && error.data.dividir && b.hasta > b.desde) {
-              for (let p = b.desde; p <= b.hasta; p++) cola.push({ desde: p, hasta: p });
+            if (error instanceof ApiError && error.data.dividir) {
+              if (b.hasta > b.desde) for (let p = b.desde; p <= b.hasta; p++) cola.push({ desde: p, hasta: p });
+              else if (!b.parte) cola.push({ desde: b.desde, hasta: b.desde, parte: 1, de: 2 }, { desde: b.desde, hasta: b.desde, parte: 2, de: 2 });
+              else cola.push({ desde: b.desde, hasta: b.desde, parte: 2 * b.parte - 1, de: 4 }, { desde: b.desde, hasta: b.desde, parte: 2 * b.parte, de: 4 });
+              progreso(`La página ${b.desde} tiene mucho contenido; se está leyendo por partes…`, total ? leidas.size / total * 100 : 0);
               break;
             }
             const reintentar = error instanceof ApiError && (error.data.reintentar || error.status === 504 || error.status === 0);

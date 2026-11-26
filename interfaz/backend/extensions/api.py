@@ -160,28 +160,63 @@ def preparar_documento(key: str):
 class Rango(BaseModel):
     desde: int = Field(ge=1)
     hasta: int = Field(ge=1)
+    parte: int | None = Field(default=None, ge=1, le=4)
+    de: int | None = None
 
 
 @router.post('/surveys/documents/{key}/leer')
 def leer_paginas(key: str, body: Rango):
-    from .cuestionario import leer_bloque
+    from .cuestionario import ZONAS, leer_bloque, pagina_no_leida
     with transaction() as state:
         doc = dict(find(state, 'encuestas_documentos', key))
     if not doc.get('paginas') or not 1 <= body.desde <= body.hasta <= doc['paginas']:
         raise HTTPException(422, 'Rango de páginas inválido.')
+    partida = body.parte is not None
+    if partida and (body.desde != body.hasta or body.de not in ZONAS or body.parte > body.de):
+        raise HTTPException(422, 'Rango de páginas inválido.')
     try:
-        resultado = leer_bloque(_pdf(key), body.desde, body.hasta, doc['paginas'], doc['nombre'])
-    except ia.IARespuestaLarga as exc:
+        resultado = leer_bloque(_pdf(key), body.desde, body.hasta, doc['paginas'], doc['nombre'], body.parte, body.de)
+    except ia.IARespuestaLarga:
         if body.hasta > body.desde:
-            return JSONResponse({'detail': 'Estas páginas tienen demasiado contenido; se leerán una por una.', 'dividir': True}, status_code=422)
-        raise HTTPException(422, f'La página {body.desde} tiene demasiado contenido para leerse completa. Revísala a mano en el editor.') from exc
+            return JSONResponse({'detail': 'Estas páginas tienen mucho contenido; se leerán una por una.', 'dividir': True}, status_code=422)
+        if not partida or body.de < 4:
+            return JSONResponse({'detail': f'La página {body.desde} tiene mucho contenido; se leerá por partes.', 'dividir': True}, status_code=422)
+        # Último recurso: se marca la zona para completarla a mano y la lectura sigue con las demás páginas.
+        resultado = pagina_no_leida(body.desde, ZONAS[body.de][body.parte - 1])
     except ia.IANoDisponible as exc:
         return _ocupada(exc)
+    clave = f'{body.desde}-{body.hasta}' + (f'#{body.parte}/{body.de}' if partida else '')
     with transaction() as state:
         doc = find(state, 'encuestas_documentos', key)
-        doc['lecturas'][f'{body.desde}-{body.hasta}'] = dict(desde=body.desde, hasta=body.hasta, **resultado)
+        doc['lecturas'][clave] = dict(desde=body.desde, hasta=body.hasta, parte=body.parte, de=body.de, **resultado)
     return dict(desde=body.desde, hasta=body.hasta, preguntas=len(resultado.get('preguntas', [])),
                 secciones=len(resultado.get('secciones', [])))
+
+
+def _lecturas_completas(lecturas) -> list[dict]:
+    """Lecturas normales más las páginas leídas por partes que ya tienen todas sus partes (unidas en orden).
+    Si una zona se volvió a partir (mitades → cuartos), se usa la división más fina que esté completa."""
+    normales, partes = [], {}
+    for r in lecturas:
+        if r.get('parte'):
+            partes.setdefault(r['desde'], {}).setdefault(r['de'], {})[r['parte']] = r
+        else:
+            normales.append(r)
+    for pagina, por_division in partes.items():
+        cuartos, mitades = por_division.get(4, {}), por_division.get(2, {})
+        piezas = []
+        for m in (1, 2):
+            if {2 * m - 1, 2 * m} <= set(cuartos):
+                piezas += [cuartos[2 * m - 1], cuartos[2 * m]]
+            elif m in mitades:
+                piezas.append(mitades[m])
+            else:
+                piezas = None
+                break
+        if piezas:
+            normales.append(dict(desde=pagina, hasta=pagina,
+                                 **{k: [x for r in piezas for x in r.get(k, [])] for k in ('secciones', 'preguntas', 'catalogos')}))
+    return sorted(normales, key=lambda r: r['desde'])
 
 
 @router.post('/surveys/documents/{key}/formulario')
@@ -189,7 +224,7 @@ def crear_formulario(key: str):
     from .cuestionario import armar_formulario
     with transaction() as state:
         doc = find(state, 'encuestas_documentos', key)
-        lecturas = sorted(doc['lecturas'].values(), key=lambda r: r['desde'])
+        lecturas = _lecturas_completas(doc['lecturas'].values())
         cubiertas = {p for r in lecturas for p in range(r['desde'], r['hasta'] + 1)}
         faltan = sorted(set(range(1, (doc.get('paginas') or 0) + 1)) - cubiertas)
         if faltan:
@@ -224,7 +259,8 @@ def crear_formulario(key: str):
 @router.get('/surveys/documents')
 def documentos():
     with transaction() as state:
-        return sorted(({k: v for k, v in d.items() if k != 'lecturas'} | {'rangos': [[r['desde'], r['hasta']] for r in d['lecturas'].values()]}
+        return sorted(({k: v for k, v in d.items() if k != 'lecturas'} | {'rangos': [[r['desde'], r['hasta']] for r in _lecturas_completas(d['lecturas'].values())],
+                          'partes': [[r['desde'], r['parte'], r['de']] for r in d['lecturas'].values() if r.get('parte')]}
                        for d in _docs(state).values()), key=lambda d: d['creado_en'], reverse=True)
 
 

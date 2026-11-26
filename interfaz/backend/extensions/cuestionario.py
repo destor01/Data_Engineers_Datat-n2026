@@ -24,8 +24,14 @@ TIPOS = {'texto': 'text', 'entero': 'integer', 'decimal': 'decimal', 'fecha': 'd
 _PASE = {"type": "object", "additionalProperties": False, "required": ["tipo", "referencia"],
          "properties": {"tipo": {"type": "string", "enum": ["ninguno", "pregunta", "seccion", "fin"]},
                         "referencia": {"type": "string"}}}
+_PASE_TABLA = {"type": "object", "additionalProperties": False, "required": ["tipo", "referencia"],
+               "properties": {"tipo": {"type": "string", "enum": ["ninguno", "pregunta", "seccion", "fin", "siguiente_fila"]},
+                              "referencia": {"type": "string"}}}
+_OPCIONES = {"type": "array", "items": {
+    "type": "object", "additionalProperties": False, "required": ["codigo", "texto"],
+    "properties": {"codigo": {"type": "string"}, "texto": {"type": "string"}, "pase_a": _PASE_TABLA}}}
 ESQUEMA = {
-    "type": "object", "additionalProperties": False, "required": ["secciones", "preguntas", "catalogos"],
+    "type": "object", "additionalProperties": False, "required": ["secciones", "preguntas", "tablas", "catalogos"],
     "properties": {
         "secciones": {"type": "array", "items": {
             "type": "object", "additionalProperties": False,
@@ -34,15 +40,30 @@ ESQUEMA = {
                            "informante": {"type": "string"}, "instrucciones": {"type": "string"}}}},
         "preguntas": {"type": "array", "items": {
             "type": "object", "additionalProperties": False,
-            "required": ["codigo", "seccion", "texto", "tipo", "obligatoria", "opciones", "pagina"],
+            "required": ["orden", "codigo", "seccion", "texto", "tipo", "obligatoria", "opciones", "pagina"],
             "properties": {
-                "codigo": {"type": "string"}, "seccion": {"type": "string"}, "texto": {"type": "string"},
+                "orden": {"type": "integer"}, "codigo": {"type": "string"}, "seccion": {"type": "string"}, "texto": {"type": "string"},
                 "tipo": {"type": "string", "enum": list(TIPOS)}, "obligatoria": {"type": "boolean"},
                 "opciones": {"type": "array", "items": {
                     "type": "object", "additionalProperties": False, "required": ["codigo", "texto"],
                     "properties": {"codigo": {"type": "string"}, "texto": {"type": "string"}, "pase_a": _PASE}}},
                 "pase_a": _PASE, "instrucciones": {"type": "string"}, "minimo": {"type": "string"},
                 "maximo": {"type": "string"}, "catalogo": {"type": "string"}, "pagina": {"type": "integer"}}}},
+        "tablas": {"type": "array", "items": {
+            "type": "object", "additionalProperties": False,
+            "required": ["orden", "codigo", "seccion", "filas", "columnas", "pagina"],
+            "properties": {
+                "orden": {"type": "integer"}, "codigo": {"type": "string"}, "seccion": {"type": "string"},
+                "pagina": {"type": "integer"},
+                "filas": {"type": "array", "items": {
+                    "type": "object", "additionalProperties": False, "required": ["codigo", "texto"],
+                    "properties": {"codigo": {"type": "string"}, "texto": {"type": "string"}}}},
+                "columnas": {"type": "array", "items": {
+                    "type": "object", "additionalProperties": False, "required": ["codigo", "texto", "tipo", "opciones"],
+                    "properties": {"codigo": {"type": "string"}, "texto": {"type": "string"},
+                                   "tipo": {"type": "string", "enum": list(TIPOS)}, "opciones": _OPCIONES,
+                                   "instrucciones": {"type": "string"}, "minimo": {"type": "string"},
+                                   "maximo": {"type": "string"}, "catalogo": {"type": "string"}}}}}}},
         "catalogos": {"type": "array", "items": {
             "type": "object", "additionalProperties": False, "required": ["titulo", "opciones"],
             "properties": {"titulo": {"type": "string"}, "opciones": {"type": "array", "items": {
@@ -55,9 +76,18 @@ Recibes algunas páginas de un documento más largo; extrae TODO lo que aparece 
 
 Reglas:
 - Incluye cada pregunta que se le hace al informante. No resumas, no omitas y no inventes preguntas.
-- Tablas y matrices: convierte cada fila y cada columna que pide un dato distinto en preguntas separadas.
-  Ejemplo: una tabla de artículos del hogar con columnas "¿posee?", "¿cuántos?" y "¿cuánto pagó?" genera
-  esas tres preguntas para cada artículo, con el nombre del artículo en el texto.
+- Tablas de artículos, gastos, alimentos u otros listados con varias columnas (la misma serie de preguntas
+  para cada fila): NO las escribas como preguntas sueltas; usa "tablas", que es mucho más corto.
+  · "filas": cada artículo con su código impreso. Si la tabla tiene subgrupos con numeración propia
+    (J.1 artículo 1, J.2 artículo 1…), combina el subgrupo en el código ("1-01", "2-01") y en el texto
+    ("Artículos de cocina: estufa de gas o eléctrica").
+  · "columnas": cada dato que se pide por fila, con su número de columna, tipo y opciones. En "texto"
+    escribe la pregunta completa usando "(...)" donde va el nombre del artículo, p. ej.
+    "¿El hogar posee, tiene o cuenta con (...)?" o "¿Cuántos(as) (...) tiene este hogar?".
+  · "Pase a la siguiente fila" (PS, "pase al siguiente artículo") en una opción: pase_a tipo "siguiente_fila".
+  · Si las filas son las personas del hogar (columna por persona o fila por persona), NO es una tabla:
+    escribe cada dato como pregunta normal con alcance "persona".
+- "orden": numera todas las preguntas y tablas juntas (1, 2, 3…) en el orden en que aparecen.
 - "codigo": el número o código impreso de la pregunta (p. ej. "1", "2a", "P15"). En filas de una tabla,
   combina el código de la pregunta con el de la fila (p. ej. "J1-03"). Vacío si no hay.
 - "seccion": capítulo y sección como aparecen impresos, p. ej.
@@ -111,16 +141,75 @@ def extraer_paginas(datos: bytes, desde: int, hasta: int) -> bytes:
     return salida.getvalue()
 
 
-def leer_bloque(datos: bytes, desde: int, hasta: int, total: int, nombre: str) -> dict:
-    parte = extraer_paginas(datos, desde, hasta)
+ZONAS = {2: ['la mitad superior', 'la mitad inferior'],
+         4: ['el primer cuarto (de arriba hacia abajo)', 'el segundo cuarto', 'el tercer cuarto', 'el último cuarto (abajo)']}
+
+
+def leer_bloque(datos: bytes, desde: int, hasta: int, total: int, nombre: str,
+                parte: int | None = None, de: int | None = None) -> dict:
+    """Lee un bloque de páginas. Con parte/de, lee solo una zona de una página muy cargada: se envía la página
+    completa (para que se vean los encabezados de las tablas) y se pide únicamente esa zona."""
+    pdf = extraer_paginas(datos, desde, hasta)
     instruccion = (f'Documento: «{nombre}» ({total} páginas). Estas son las páginas {desde} a {hasta}; '
                    f'la primera página adjunta es la página {desde} del documento. Extrae su contenido.')
-    r = ia.generar('SURVEY_IA_MODELO', SISTEMA, [ia.pdf(parte), {"type": "text", "text": instruccion}], ESQUEMA,
+    if parte and de in ZONAS:
+        instruccion = (f'Documento: «{nombre}» ({total} páginas). Esta es la página {desde}. Tiene demasiado contenido '
+                       f'para extraerlo de una vez, así que se lee en {de} partes. Extrae SOLO lo que está en '
+                       f'{ZONAS[de][parte - 1]} de la página; usa el resto solo como contexto (por ejemplo, los encabezados '
+                       f'de una tabla). Si una tabla cruza el límite, incluye solo sus filas que están en esa zona.')
+    r = ia.generar('SURVEY_IA_MODELO', SISTEMA, [ia.pdf(pdf), {"type": "text", "text": instruccion}], ESQUEMA,
                    max_tokens=32000)
-    for p in r.get('preguntas', []):
+    r['preguntas'] = expandir_tablas(r)
+    r.pop('tablas', None)
+    for p in r['preguntas']:
         if not isinstance(p.get('pagina'), int) or not desde <= p['pagina'] <= hasta:
             p['pagina'] = desde
     return r
+
+
+def pagina_no_leida(pagina: int, zona: str = '') -> dict:
+    """Marcador para una parte que no se pudo leer: queda como pregunta con alerta en el editor."""
+    donde = f'{zona} de la página {pagina}' if zona else f'la página {pagina}'
+    return dict(secciones=[], catalogos=[], preguntas=[dict(
+        codigo='', seccion='Revisar a mano', texto=f'Contenido de {donde} pendiente de agregar', tipo='texto',
+        obligatoria=False, opciones=[], pagina=pagina,
+        _alerta=f'No se pudo leer automáticamente {donde} porque tiene demasiado contenido. Agrega a mano sus '
+                f'preguntas (o revisa el PDF) y luego elimina esta.')])
+
+
+def _texto_fila(columna: str, fila: str) -> str:
+    texto = re.sub(r'\((\.\.\.|…)\)|\.\.\.|…', fila, columna, count=1)
+    return texto if texto != columna else f'{fila}: {columna}'
+
+
+def expandir_tablas(r: dict) -> list[dict]:
+    """Convierte cada tabla (filas × columnas) en preguntas, en el orden de lectura de la página."""
+    elementos = [(p.get('orden') or 0, i, [p]) for i, p in enumerate(r.get('preguntas', []))]
+    for t in r.get('tablas') or []:
+        filas = [f for f in t.get('filas', []) if (f.get('texto') or '').strip()]
+        columnas = t.get('columnas', [])
+        base = (t.get('codigo') or '').strip()
+        codigos = [[f"{base}-{(f.get('codigo') or str(n + 1)).strip()}-{(c.get('codigo') or str(k + 1)).strip()}".strip('-')
+                    for k, c in enumerate(columnas)] for n, f in enumerate(filas)]
+        generadas = []
+        for n, f in enumerate(filas):
+            for k, c in enumerate(columnas):
+                opciones = []
+                for o in c.get('opciones', []):
+                    o = dict(o)
+                    pase = o.get('pase_a') or {}
+                    if pase.get('tipo') == 'siguiente_fila':
+                        o['pase_a'] = (dict(tipo='pregunta', referencia=codigos[n + 1][0]) if n + 1 < len(filas)
+                                       else dict(tipo='ninguno', referencia=''))
+                    opciones.append(o)
+                generadas.append(dict(codigo=codigos[n][k], seccion=t.get('seccion') or '',
+                                      texto=_texto_fila(c.get('texto') or '', f['texto'].strip()), tipo=c.get('tipo'),
+                                      obligatoria=True, opciones=opciones, instrucciones=c.get('instrucciones', ''),
+                                      minimo=c.get('minimo', ''), maximo=c.get('maximo', ''), catalogo=c.get('catalogo', ''),
+                                      pagina=t.get('pagina')))
+        elementos.append((t.get('orden') or 0, len(elementos), generadas))
+    elementos.sort(key=lambda e: (e[0], e[1]))
+    return [p for _, _, grupo in elementos for p in grupo]
 
 
 # ---------------------------------------------------------------------------
@@ -187,7 +276,7 @@ def armar_formulario(bloques: list[dict], nombre: str, codigo_plantilla: str, or
         q = dict(id=f'q{i:04d}', codigo=(p.get('codigo') or '').strip()[:40], section_id=sid,
                  label=p['texto'].strip()[:1000], type=TIPOS.get(p.get('tipo'), 'text'),
                  required=bool(p.get('obligatoria', True)), instrucciones=(p.get('instrucciones') or '').strip()[:1000],
-                 pagina=p.get('pagina'), alertas=[])
+                 pagina=p.get('pagina'), alertas=[p['_alerta']] if p.get('_alerta') else [])
         opciones, vistos = [], set()
         for o in p.get('opciones', []):
             code = str(o.get('codigo', '')).strip()[:20]
