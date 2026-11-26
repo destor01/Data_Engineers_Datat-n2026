@@ -17,4 +17,4 @@ Convierte los hallazgos de Data Audit en recomendaciones y en un manual instituc
 ## Configuración
 
 - `ANTHROPIC_API_KEY` (secreta, opcional): mejora la redacción. Sin ella se usan las explicaciones estándar de cada regla.
-- Opcionales: `MEJORA_IA_MODELO` (por defecto `claude-sonnet-5-5`) y `MEJORA_IA=0` para no usar IA.
+- Opcionales: `MEJORA_IA_MODELO` (por defecto `claude-haiku-5-5`) y `MEJORA_IA=0` para no usar IA.

@@ -20,4 +20,4 @@ Convierte el cuestionario en PDF de cualquier encuesta en un formulario digital,
 ## Configuración
 
 - `ANTHROPIC_API_KEY` (secreta): necesaria para generar formularios y para la verificación.
-- Opcionales: `SURVEY_IA_MODELO` (modelo para leer el PDF; por defecto `claude-sonnet-5-5`), `SURVEY_VERIF_MODELO` (modelo para la verificación; si no se define usa el mismo; `claude-haiku-5-5` es mucho más económico), `SURVEY_PAGINAS_BLOQUE` (páginas por petición, 2 por defecto), `SURVEY_STORAGE_BUCKET` (por defecto `encuestas`; se crea solo si no existe).
+- Opcionales: `SURVEY_IA_MODELO` (modelo para leer el PDF) y `SURVEY_VERIF_MODELO` (modelo para la verificación); ambos usan `claude-haiku-5-5` si no se definen, `SURVEY_PAGINAS_BLOQUE` (páginas por petición, 2 por defecto), `SURVEY_STORAGE_BUCKET` (por defecto `encuestas`; se crea solo si no existe).

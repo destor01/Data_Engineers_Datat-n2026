@@ -1,8 +1,9 @@
 """Llamadas a Claude para Survey Audit y Quality Improvement.
 
 Requiere ANTHROPIC_API_KEY. Modelos (opcionales):
-  SURVEY_IA_MODELO   lectura de cuestionarios y validación cruzada (por defecto claude-sonnet-5-5)
-  MEJORA_IA_MODELO   recomendaciones de Quality Improvement (por defecto claude-sonnet-5-5)
+  SURVEY_IA_MODELO   lectura de cuestionarios (por defecto claude-haiku-5-5)
+  SURVEY_VERIF_MODELO validación cruzada con la grabación (por defecto, el de SURVEY_IA_MODELO)
+  MEJORA_IA_MODELO   recomendaciones de Quality Improvement (por defecto claude-haiku-5-5)
   MEJORA_IA          0 para no usar IA en las recomendaciones aunque haya llave
 
 Las respuestas se piden como JSON con esquema, así que llegan listas para usar.
@@ -35,11 +36,12 @@ def disponible() -> bool:
     return bool((os.environ.get("ANTHROPIC_API_KEY") or "").strip())
 
 
+MODELO = "claude-haiku-5-5"  # modelo económico para toda la plataforma
 RESPALDO = {"SURVEY_VERIF_MODELO": "SURVEY_IA_MODELO"}  # la verificación usa el modelo del PDF si no se define
 
 
 def modelo(variable: str) -> str:
-    return (os.environ.get(variable) or os.environ.get(RESPALDO.get(variable, "")) or "claude-sonnet-5-5").strip()
+    return (os.environ.get(variable) or os.environ.get(RESPALDO.get(variable, "")) or MODELO).strip()
 
 
 def pdf(datos: bytes) -> dict:
