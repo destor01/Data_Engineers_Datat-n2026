@@ -19,25 +19,11 @@ Cada limitación indica su impacto, cómo se mitiga hoy y qué solución se prop
 | L11 | **Retención de archivos.** No hay borrado automático de originales y audios. | Medio (confidencialidad). | Buckets privados, URLs firmadas de 5 minutos, descargas registradas. | Política de retención con borrado programado. |
 | L12 | **Codificador con IA validado con muestra pequeña** (19/20). | Medio. | Umbral de confianza ≥ 0.6, códigos inexistentes descartados, aprobación humana. | Medir con una muestra grande ya codificada por el INE. |
 
-## Funcionalidades solicitadas o previstas no implementadas
-
-| Funcionalidad | Estado |
-|---|---|
-| OCR independiente del modelo de IA | No implementado (la IA lee texto e imagen de cada página) |
-| Validaciones cruzadas entre preguntas del cuestionario (p. ej., edades de padres e hijos) | No implementado |
-| Uso de los diccionarios de hogares y personas de la ENCOVI | No implementado |
-| Captura de entrevistas sin conexión en campo | No implementado |
-| Roles y permisos por institución | No implementado |
-| Política de retención y borrado automático | No implementado |
-| Envío automático de manuales a las instituciones y seguimiento de su efecto | No implementado |
-| Evaluación JEV de secciones del cuestionario más allá de A1–A2 | No implementado |
-| Conexión automática Data Audit → Quality Improvement (hoy se descarga y sube el JSON) | No implementado |
-| Medición de WER, DER, exactitud de JEV, de extracción del PDF y de conciliación | Requiere datos reales autorizados |
 
 ## Posibles mejoras (priorizadas)
 
 1. Validar con datos reales autorizados y medir las métricas de L1, L5 y L12.
 2. Roles por institución, retención automática y acuerdos de tratamiento de datos (L9–L11).
-3. Importar formularios CAPI existentes y validaciones cruzadas (L4, L6).
+3. Importar formularios CAPI existentes  (L4, L6).
 4. Servidor institucional con cola de trabajos (L7).
 5. Conectar automáticamente Data Audit con Quality Improvement y medir si las recomendaciones reducen los errores en el período siguiente.
