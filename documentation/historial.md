@@ -4,13 +4,13 @@ El proyecto se desarrolló durante el Datatón INE Guatemala 2026, del **24 al 2
 
 ## Equipo y contribuciones reales
 
-Contribuciones según los commits de la rama principal. Las contribuciones que no dejan commit (análisis de datos, pruebas manuales, presentación, video) deben completarlas los integrantes.
+Contribuciones según los commits de la rama principal.
 
 | Integrante | Usuario de GitHub | Commits | Contribuciones principales |
 |---|---|---:|---|
 | Derek Tórtola | `destor01` | 20 | Motor y API de Data Audit (lectura, reglas, catálogos, puntaje, codificador con IA, bandeja de correcciones, historial); integración de los módulos en una API; despliegue unificado en Vercel + Supabase con login; Survey Audit desde PDF; Quality Improvement con manual PDF; calibración y reporte JEV en la interfaz común; documentación técnica |
 | Guillermo Martínez | `guillermo-martinez42` | 4 | Primera versión de Audio Audit (transcripción con WhisperX y diarización); evaluación del encuestador con JEV; transcripción en la nube (AssemblyAI/Deepgram) y evaluaciones editables; endurecimiento de seguridad de la API de audio |
-| Jennifer | `Jennifer` | 11 | Organización de los módulos Audio Audit y Data Audit; integración del primer frontend común; documentación inicial y de arquitectura; preparación del despliegue; revisión y fusión de los PR #1, #2, #4 y #5 |
+| Jennifer Morales | `Jennifer` | 11 | Organización de los módulos Audio Audit y Data Audit; integración del primer frontend común; documentación inicial y de arquitectura; preparación del despliegue; revisión y fusión de los PR #1, #2, #4 y #5 |
 
 ## Ramas
 
@@ -29,10 +29,10 @@ Contribuciones según los commits de la rama principal. Las contribuciones que n
 
 | PR | Rama | Contenido | Fusionado por |
 |---|---|---|---|
-| #1 | `audio-audit` | Módulo Audio Audit organizado | Jennifer |
-| #2 | `data-audit` | Módulo Data Audit | Jennifer |
-| #4 | `data-audit` | Reorganización de Data Audit | Jennifer |
-| #5 | `documentation` | Documentación técnica inicial | Jennifer |
+| #1 | `audio-audit` | Módulo Audio Audit organizado | Jennifer Morales |
+| #2 | `data-audit` | Módulo Data Audit | Jennifer Morales |
+| #4 | `data-audit` | Reorganización de Data Audit | Jennifer Morales |
+| #5 | `documentation` | Documentación técnica inicial | Jennifer Morales |
 | #6 | `qa-bases-datos` | API de QA de bases de datos (fusionado localmente) | Derek Tórtola |
 | #7 | `deploy-vercel-supabase` | Despliegue unificado con login | Derek Tórtola |
 
@@ -44,27 +44,27 @@ Contribuciones según los commits de la rama principal. Las contribuciones que n
 
 ## Commits de la rama principal
 
-La última columna indica los commits que declaran coautoría de un asistente de IA (ver [declaración de IA](ia-y-servicios.md)).
+La última columna indica los commits que declaran en el mensaje la coautoría de Claude. Guillermo Martínez usó Gemini Pro y Jennifer Morales ChatGPT Plus como asistentes en sus contribuciones (ver [declaración de IA](ia-y-servicios.md)).
 
 | Fecha | Commit | Autor | Mensaje | Coautoría IA |
 |---|---|---|---|---|
 | 24-Nov 16:49 | `15f5add` | Guillermo Martínez | first commit |  |
 | 24-Nov 21:14 | `80a7fce` | Derek Tórtola (destor01) | Motor de validación de bases de datos (QA) |  |
 | 24-Nov 21:30 | `3ae0fb1` | Derek Tórtola (destor01) | API de QA de bases de datos |  |
-| 24-Nov 21:40 | `a5ff7ea` | Jennifer | Refactor: organize Audio Audit module |  |
-| 24-Nov 21:48 | `81f2cf0` | Jennifer | Merge pull request #1 from destor01/audio-audit |  |
-| 24-Nov 21:52 | `f73ceb4` | Jennifer | Merge pull request #2 from destor01/data-audit |  |
-| 24-Nov 22:04 | `1d5cd2b` | Jennifer | Refactor: organize Data Audit module |  |
-| 24-Nov 22:08 | `b6d8c76` | Jennifer | Merge pull request #4 from destor01/data-audit |  |
-| 24-Nov 22:23 | `cb23f7f` | Jennifer | Docs: add Quality Audit technical documentation |  |
-| 24-Nov 22:25 | `cd3bd71` | Jennifer | Merge pull request #5 from destor01/documentation |  |
-| 24-Nov 22:29 | `7829dca` | Jennifer | Docs: add Data Audit module README |  |
+| 24-Nov 21:40 | `a5ff7ea` | Jennifer Morales | Refactor: organize Audio Audit module |  |
+| 24-Nov 21:48 | `81f2cf0` | Jennifer Morales | Merge pull request #1 from destor01/audio-audit |  |
+| 24-Nov 21:52 | `f73ceb4` | Jennifer Morales | Merge pull request #2 from destor01/data-audit |  |
+| 24-Nov 22:04 | `1d5cd2b` | Jennifer Morales | Refactor: organize Data Audit module |  |
+| 24-Nov 22:08 | `b6d8c76` | Jennifer Morales | Merge pull request #4 from destor01/data-audit |  |
+| 24-Nov 22:23 | `cb23f7f` | Jennifer Morales | Docs: add Quality Audit technical documentation |  |
+| 24-Nov 22:25 | `cd3bd71` | Jennifer Morales | Merge pull request #5 from destor01/documentation |  |
+| 24-Nov 22:29 | `7829dca` | Jennifer Morales | Docs: add Data Audit module README |  |
 | 25-Nov 11:46 | `980d29d` | Guillermo Martínez | added Jev implementation |  |
-| 25-Nov 12:22 | `0c40a40` | Jennifer | Integra frontend de Quality Audit y agrega conexión con Audio Audit y Data Audit |  |
-| 25-Nov 13:22 | `e782bca` | Jennifer | Docs: update documentation and frontend architecture |  |
+| 25-Nov 12:22 | `0c40a40` | Jennifer Morales | Integra frontend de Quality Audit y agrega conexión con Audio Audit y Data Audit |  |
+| 25-Nov 13:22 | `e782bca` | Jennifer Morales | Docs: update documentation and frontend architecture |  |
 | 25-Nov 18:15 | `e2d9262` | Guillermo Martínez | Cheapest Speech-to-Text + Speaker Diarization (No Hugging Face Token) also added Editable Evaluations (Current Interview + Future Transcripts) and Vercel + Supabase Architecture |  |
 | 25-Nov 19:08 | `9c00a3a` | Derek Tórtola (destor01) | Codificador con IA y sitio de defunción |  |
-| 25-Nov 19:54 | `c8c8439` | Jennifer | deploy+ |  |
+| 25-Nov 19:54 | `c8c8439` | Jennifer Morales | deploy+ |  |
 | 25-Nov 21:09 | `7c5d09f` | Derek Tórtola (destor01) | Documentación técnica del módulo de QA |  |
 | 25-Nov 21:10 | `369981c` | Derek Tórtola (destor01) | Integra el módulo de QA en data-audit |  |
 | 25-Nov 21:29 | `af2106c` | Guillermo Martínez | Harden audio-audit API: auth, CSRF/rebinding guards, input limits |  |

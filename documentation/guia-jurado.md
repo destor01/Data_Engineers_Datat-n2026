@@ -7,9 +7,8 @@ Ruta sugerida para entender, probar y evaluar Quality Audit sin ayuda del equipo
 | Recurso | Dónde |
 |---|---|
 | Plataforma publicada | https://dataton-six.vercel.app |
-| Cuentas del jurado | [accesos.md](accesos.md) (se llena cuando el repositorio sea privado) |
-| Repositorio | https://github.com/destor01/Data_Engineers_Datat-n2026 — si es privado, el equipo invita a las cuentas de GitHub del jurado con permiso de lectura; el historial completo queda visible ([historial](historial.md)) |
-| Video de demostración | Ver enlace en el [README](../README.md#demostración) |
+| Cuentas de la plataforma | [accesos.md](accesos.md) |
+| Repositorio | https://github.com/destor01/Data_Engineers_Datat-n2026 — privado; las cuentas de GitHub del jurado ya están invitadas y ven el historial completo ([historial](historial.md)) |
 | Archivos de prueba sintéticos | `documentation/ejemplos/` |
 
 > El plan gratuito de Supabase pausa el proyecto tras una semana sin uso. Si la plataforma no responde, avisar al equipo o instalarla localmente (sección 4).
@@ -60,7 +59,7 @@ uvicorn api.index:app --port 8000 &
 (cd interfaz && npm ci && npm run dev)
 ```
 
-Los diccionarios son públicos y se descargan del portal del INE ([fuentes](data-sources.md#diccionarios-públicos-del-ine)).
+Los diccionarios oficiales del INE no están en el repositorio: la organización del Datatón los compartió con los equipos ([fuentes](data-sources.md#diccionarios-oficiales-del-ine)).
 
 ## 5. Cómo comprobar las afirmaciones principales
 

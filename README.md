@@ -5,7 +5,6 @@
 | | |
 |---|---|
 | Sistema en línea | https://dataton-six.vercel.app (acceso con cuenta; ver [Accesos](documentation/accesos.md)) |
-| Video demostrativo | _Pendiente de publicar: agregar aquí el enlace antes de la entrega._ |
 | Guía para el jurado | [Cómo evaluar Quality Audit en 30 minutos](documentation/guia-jurado.md) |
 | Repositorio | https://github.com/destor01/Data_Engineers_Datat-n2026 |
 
@@ -51,7 +50,7 @@ Proveer al INE una plataforma que asegure de forma integral la calidad de la inf
 - **Configurable sin programar:** una base nueva se agrega con un archivo YAML. Los umbrales de cada regla se cambian en la base de datos. Las reglas de JEV se reescriben desde la pantalla.
 - **Explicable:** cada hallazgo trae filas, columnas, porcentajes o el minuto de la grabación. No hay puntajes sin evidencia.
 - **Funciona con cualquier encuesta:** Survey Audit no depende de ENCOVI; lee el PDF que se suba.
-- **Bajo costo:** software libre y servicios en planes gratuitos. El gasto variable por uso de IA se mide en centavos por base o por entrevista (ver [costos](documentation/ia-y-servicios.md#costos)).
+- **Bajo costo:** software libre y servicios en planes gratuitos. El gasto variable por uso de IA es de centavos por base y de 1.04 USD por cuestionario convertido en formulario (ver [costos](documentation/ia-y-servicios.md#costos)).
 - **Pensado para personas no programadoras:** textos y mensajes en lenguaje claro, sin códigos HTTP ni términos técnicos.
 
 ## Funcionalidades y estado real
@@ -118,7 +117,7 @@ Lista completa de dependencias y sus licencias: [Licencias de terceros](document
 
 **Opción A: usar el sistema publicado.** Entrar a https://dataton-six.vercel.app con la cuenta entregada al jurado. No requiere instalar nada.
 
-**Opción B: ejecutar todo en local** (instalación limpia verificada en Linux; el equipo trabajó en Windows; Python 3.12+, Node.js 22, PostgreSQL 16). Desde la raíz del repositorio:
+**Opción B: ejecutar todo en local** (Windows o Linux; Python 3.12+, Node.js 22, PostgreSQL 16). Desde la raíz del repositorio:
 
 ```bash
 python -m venv .venv
@@ -140,7 +139,6 @@ Los pasos completos están en [Instalación y reproducibilidad](documentation/in
 
 1. **Sistema:** https://dataton-six.vercel.app.
 2. **Recorrido sugerido para el jurado:** [guía de evaluación](documentation/guia-jurado.md). Incluye un camino sin datos sensibles: el ejemplo ENCOVI sintético en Audio Audit y un CSV de prueba en Data Audit.
-3. **Video:** _pendiente de enlace._
 
 ## Resultados
 
@@ -154,12 +152,12 @@ Los pasos completos están en [Instalación y reproducibilidad](documentation/in
 | Codificación de texto libre con IA (muestra de prueba) | 19 de 20 aciertos; el texto ambiguo quedó sin código, sin adivinar | Ídem |
 | Reglas del manual ENCOVI evaluadas por entrevista | 51 (24 de la sección A1, 27 de la A2) | [Metodología](documentation/methodology.md#audio-audit-evaluación-del-encuestador-con-jev) |
 | Pruebas automáticas | 40 pruebas automáticas y 6 recorridos completos en navegador, todos aprobados; instalación limpia verificada | [Pruebas](documentation/testing.md) |
-| Costo de IA estimado | ~0.32 USD la primera carga de defunciones, <0.02 USD una de PNC; centavos por entrevista | [IA y servicios](documentation/ia-y-servicios.md#costos) |
+| Costo de IA | 1.04 USD por cuestionario para generar el formulario (medido con la ENCOVI 2023, 72 páginas); ~0.32 USD la primera carga de defunciones y <0.02 USD una de PNC (estimado) | [IA y servicios](documentation/ia-y-servicios.md#costos) |
 
 ## Datos y fuentes
 
 - **Crudos institucionales** entregados por el INE para el Datatón (paquete «Conjunto de datos_ instituciones», 23-nov-2026): detenidos PNC (oct-2026), calidad del aire INSIVUMEH (2025), defunciones RENAP (jul-2026), emergencias SECONRED (2025) y nacimientos RENAP (jun-2026).
-- **Publicaciones y diccionarios oficiales del INE** (https://www.ine.gob.gt), obtenidos el 24 y 25-nov-2026: diccionarios de defunciones y nacimientos 2018-2022, diccionario de detenidos PNC, bases publicadas de defunciones 2025, nacimientos 2022 y 2025, detenidos, monitoreo del aire 2025 y eventos CONRED 2022.
+- **Publicaciones y diccionarios oficiales del INE**, compartidos con los equipos por correo electrónico por un miembro de la organización del Datatón el 24 y 25-nov-2026: diccionarios de defunciones y nacimientos 2018-2022, diccionario de detenidos PNC, bases publicadas de defunciones 2025, nacimientos 2022 y 2025, detenidos, monitoreo del aire 2025 y eventos CONRED 2022.
 - **Cuestionario ENCOVI 2023** (PDF, 72 páginas) y **Manual del Encuestador ENCOVI 2023**, fuente de las 51 reglas de Audio Audit.
 
 Ningún dato real está en el repositorio. Detalle, fechas y condiciones de uso: [Fuentes de datos](documentation/data-sources.md).
@@ -173,7 +171,7 @@ Ningún dato real está en el repositorio. Detalle, fechas y condiciones de uso:
 - Vincular una grabación exige confirmar la autorización de uso. La descarga del archivo original queda registrada.
 - Las llaves solo existen como variables secretas del servidor, nunca en el repositorio.
 
-Detalle y riesgos pendientes: [Seguridad y confidencialidad](documentation/security.md).
+Detalle, riesgos y mitigaciones: [Seguridad y confidencialidad](documentation/security.md).
 
 ## Limitaciones
 
@@ -221,7 +219,7 @@ Detalle y riesgos pendientes: [Seguridad y confidencialidad](documentation/secur
 | [Diccionario de datos](documentation/diccionario-datos.md) | Variables de cada base, tipos, valores permitidos, transformaciones y reglas |
 | [Referencia de la API](documentation/api-referencia.md) | Las 78 operaciones con parámetros, respuestas y errores ([convenciones](documentation/integration-api.md)) |
 | [Ejemplos sintéticos](documentation/ejemplos/) | Archivos para probar cada módulo sin datos reales |
-| [Accesos](documentation/accesos.md) | Cuentas para el jurado (se completa con el repositorio privado) |
+| [Accesos](documentation/accesos.md) | Cuentas para entrar a la plataforma |
 
 Documentación técnica detallada por módulo: [Data Audit](data-audit/qa_bases_datos/DOCUMENTACION.md), [Audio Audit](audio-audit/README.md), [Guía de reglas JEV](audio-audit/encovi_jev/GUIDE_JEV_QUESTIONS.md), [Survey Audit](survey-audit/README.md) y [Quality Improvement](quality-improvement/README.md).
 
@@ -233,10 +231,10 @@ Documentación técnica detallada por módulo: [Data Audit](data-audit/qa_bases_
 |---|---|---|
 | Derek Tórtola | [destor01](https://github.com/destor01) | Motor y API de Data Audit, codificador con IA, integración de los módulos en una sola plataforma, despliegue en Vercel y Supabase con inicio de sesión, Survey Audit desde PDF, Quality Improvement, documentación |
 | Guillermo Martínez | [guillermo-martinez42](https://github.com/guillermo-martinez42) | Audio Audit: transcripción, separación de hablantes en la nube, evaluación JEV, edición y calibración de evaluaciones, seguridad de la API de audio |
-| Jennifer | Jennifer | Organización de los módulos, interfaz común de Quality Audit, conexión de la interfaz con Audio y Data Audit, documentación técnica, integración de ramas |
+| Jennifer Morales | Jennifer | Organización de los módulos, interfaz común de Quality Audit, conexión de la interfaz con Audio y Data Audit, documentación técnica, integración de ramas |
 
 Detalle por commit: [Historial de desarrollo](documentation/historial.md).
 
 ## Licencia
 
-No se eligió una licencia general para el código propio: la Nota Conceptual prevé una licencia institucional no exclusiva, gratuita, perpetua e irrevocable a favor del INE conservando la autoría, y la presentación inaugural usó otra redacción sobre cesión de derechos. La licencia se definirá cuando el INE confirme las condiciones. Las librerías y modelos de terceros conservan sus licencias originales ([Licencias de terceros](documentation/licencias.md)).
+El código propio se entrega bajo los términos de la Nota Conceptual del Datatón: licencia institucional no exclusiva, gratuita, perpetua e irrevocable a favor del INE, conservando la autoría del equipo. Las librerías y modelos de terceros conservan sus licencias originales ([Licencias de terceros](documentation/licencias.md)).

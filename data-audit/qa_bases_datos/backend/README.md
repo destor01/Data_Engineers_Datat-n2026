@@ -227,7 +227,7 @@ python -m qa.cli procesar --base DETENIDOS --archivo detenidos.xlsx --anio 2026 
 En la primera carga de defunciones son unas 260 llamadas (3,154 causas y 7,108 sitios en lotes de
 40); en las siguientes, solo los textos nuevos.
 
-### Pendiente
+### Mejoras propuestas
 
 - CIE-10 se codifica a partir de la causa A (la que RENAP escribe primero). El INE publica la causa
   básica, que sale de la cadena A → D; el siguiente paso es mandar la cadena completa por registro.
@@ -297,8 +297,8 @@ Así el front del transcriptor y el de bases de datos usan el mismo servidor y e
 Lo aprobado queda como equivalencia de la institución: la siguiente carga de esa institución ya
 viene codificada. Lo rechazado no se vuelve a sugerir.
 
-**Pendiente:** autenticación. Por ahora `usuario` es un email opcional; sin él, las acciones quedan a
-nombre del usuario del motor. Antes de producción hay que agregar login y permisos por rol.
+**Autenticación:** en la plataforma la hace Supabase Auth y cada acción queda a nombre del usuario de la sesión.
+Usada sola (sin la plataforma), `usuario` es un email opcional; los permisos por rol son una mejora propuesta.
 
 ## Resultados con los crudos reales
 
@@ -343,12 +343,16 @@ nombre del usuario del motor. Antes de producción hay que agregar login y permi
   - Tipo de inscripción: RENAP manda "Consular" (19 % de los nacimientos), un valor que el
     diccionario no tiene.
 
-## Pendiente de confirmar con el INE
+## Casos especiales de los diccionarios
 
-- Grupo de causa de 6 causas de PNC que no aparecen en la base publicada 2023:
-  16 Autosecuestro, 34 Cobro ilegal de impuesto a buses, 37 Impuesto a negocios,
-  38 En desalojos de fincas, 44 Siembra y cultivo de drogas, 63 Tenencia de licores clandestinos.
-- Cómo codificar "Consular" en tipo de inscripción.
-- Si existe un diccionario posterior a 2018-2022 (la publicación 2025 ya no trae ocupación).
-- Cómo decide el INE los meses de calidad del aire que difieren de la regla de 4 horas y 2 días.
-- Si "**" en los conteos de SECONRED significa "dato pendiente" o "confidencial".
+Detectados al comparar los crudos con los diccionarios. Hoy se resuelven en la bandeja de correcciones
+o ajustando el catálogo, sin programar:
+
+- 6 causas de PNC sin grupo de causa en la base publicada 2023: 16 Autosecuestro, 34 Cobro ilegal de
+  impuesto a buses, 37 Impuesto a negocios, 38 En desalojos de fincas, 44 Siembra y cultivo de drogas,
+  63 Tenencia de licores clandestinos.
+- "Consular" en tipo de inscripción de nacimientos, valor que el diccionario 2018-2022 no tiene.
+- Ocupación: la publicación 2025 ya no la incluye; se usa el diccionario 2018-2022.
+- Calidad del aire: 8 de 19 combinaciones estación–PM difieren en un mes de lo publicado; el motor
+  aplica la regla de 4 horas y 2 días de forma uniforme y los umbrales son editables.
+- "**" en los conteos de SECONRED se reporta como valor con tipo de dato incorrecto (`GEN_TIPO`).

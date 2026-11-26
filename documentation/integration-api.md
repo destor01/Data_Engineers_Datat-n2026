@@ -135,5 +135,5 @@ GET /api/salud
 
 - El vínculo entre una entrevista y su transcripción se guarda por identificador de entrevista y huella del contenido, no por nombre de archivo.
 - La verificación con la grabación nunca cambia las respuestas registradas.
-- Data Audit no se conecta automáticamente con Quality Improvement: se descarga `reporte.json` y se sube (mejora pendiente).
+- Data Audit no se conecta automáticamente con Quality Improvement: se descarga `reporte.json` y se sube (mejora propuesta).
 - Las llaves de proveedores nunca viajan desde el navegador: solo se configuran en el servidor.

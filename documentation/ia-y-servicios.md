@@ -7,9 +7,8 @@ Declaración obligatoria según la Nota Conceptual del Datatón. Se separan dos 
 | Herramienta | Finalidad | Participación | Supervisión | Ejecución | Limitaciones |
 |---|---|---|---|---|---|
 | **Claude Opus 5.5** (Anthropic), mediante Claude Code | Asistente de programación: redactar y modificar código, pruebas, scripts de captura, migraciones y documentación; depurar errores de despliegue; revisar costos de tokens | Coautor declarado en 13 commits de la rama principal (trailer `Co-Authored-By: Claude Opus 5.5`, ver [historial](historial.md)), en Survey Audit, Quality Improvement, la integración de JEV en la interfaz, la bandeja de Data Audit, el despliegue y esta documentación | Derek Tórtola definió cada requerimiento, revisó los cambios, ejecutó las pruebas y decidió qué se publicaba. Toda cifra de la documentación sale de pruebas ejecutadas o del código | Externa (servicio de Anthropic). Sin acceso a llaves: los secretos se configuraron solo en Vercel | Puede proponer código con errores; por eso cada cambio se verificó con pruebas unitarias y recorridos en navegador. No tuvo acceso a los crudos con datos personales |
-| *Otras herramientas usadas por el resto del equipo* | **Pendiente de declarar por cada integrante** (Guillermo Martínez y Jennifer) | — | — | — | — |
-
-Los commits sin trailer de coautoría no declaran uso de IA; si algún integrante usó un asistente en ellos, debe agregarlo a esta tabla.
+| **Gemini Pro** (Google) | Asistente de programación y redacción usado por Guillermo Martínez en sus contribuciones a Audio Audit | Apoyo en el código de transcripción, evaluación JEV y seguridad de la API de audio | Guillermo Martínez revisó y probó lo generado antes de cada commit | Externa (servicio de Google) | Puede proponer código con errores; sin acceso a llaves ni a datos con información personal |
+| **ChatGPT Plus** (OpenAI) | Asistente de programación y redacción usado por Jennifer Morales en sus contribuciones | Apoyo en la organización de módulos, la interfaz común y la documentación inicial | Jennifer Morales revisó y probó lo generado antes de cada commit | Externa (servicio de OpenAI) | Puede proponer código con errores; sin acceso a llaves ni a datos con información personal |
 
 ## 2. IA integrada en el producto
 
@@ -52,7 +51,7 @@ Los precios cambian: verificar en la página de cada proveedor antes de presupue
 | Data Audit, cargas siguientes | Una fracción de la primera | Las sugerencias se guardan y no se vuelven a pedir |
 | Data Audit sin IA | 0 | `QA_IA_PROVEEDOR=ninguno` |
 | Evaluación JEV de la entrevista de ejemplo (simulada) | El reporte muestra tokens y costo por evaluación | Campo `usage` del reporte |
-| Lectura del cuestionario ENCOVI (72 p.) con la configuración **anterior** | Cerca de 1 USD (consola del proveedor) | Antes de usar Haiku, tablas compactas y caché; **no se ha vuelto a medir** tras la optimización |
+| Generar el formulario del cuestionario ENCOVI 2023 (72 páginas) | **1.04 USD por cuestionario** | Medido con la arquitectura actual (Haiku 5.5, bloques de 2 páginas, tablas compactas y lectura por zonas) |
 
 ### Medidas de reducción de costo implementadas
 

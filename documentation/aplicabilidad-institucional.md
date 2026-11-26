@@ -106,7 +106,7 @@ Fases propuestas por el equipo como **ruta de evolución posible; no son comprom
 | Fase | Objetivo | Actividades | Criterio para avanzar |
 |---|---|---|---|
 | **1. Prototipo Datatón** (actual) | Demostrar los cuatro módulos integrados | Plataforma publicada, pruebas con crudos reales en Data Audit y datos sintéticos en el resto | Evaluación del jurado |
-| **2. Validación con personal técnico del INE** | Confirmar reglas, umbrales y utilidad | Talleres con analistas; resolver puntos pendientes (causas PNC, «Consular», meses de aire); medir tiempos actuales | Reglas aprobadas por el área técnica |
+| **2. Validación con personal técnico del INE** | Confirmar reglas, umbrales y utilidad | Talleres con analistas; definir la codificación de casos especiales (causas PNC, «Consular», meses de aire); medir tiempos actuales | Reglas aprobadas por el área técnica |
 | **3. Pruebas piloto autorizadas** | Medir con datos reales en un entorno controlado | Una base mensual de registros administrativos y una muestra de entrevistas grabadas con autorización; medir WER, DER, exactitud de JEV y de conciliación | Métricas aceptables definidas con el INE |
 | **4. Optimización** | Preparar para uso continuo | Roles por institución, retención automática, normalización de tablas, cola de trabajos, modelos locales donde se requiera | Pruebas de carga y de seguridad aprobadas |
 | **5. Integración con sistemas institucionales** | Operar dentro de la infraestructura del INE | Despliegue en servidores del INE, autenticación institucional, conexión con los sistemas de captura y procesamiento existentes | Operación estable en producción |

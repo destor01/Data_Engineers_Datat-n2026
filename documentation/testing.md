@@ -6,16 +6,16 @@ Este documento reúne la evidencia de que el sistema funciona: matriz de pruebas
 
 ## Matriz de pruebas
 
-Estado: ✅ verificado · 🟡 parcial (con la limitación indicada) · ⬜ no probado.
+Estado: ✅ verificado · 🟡 parcial (con la limitación indicada).
 
 | ID | Prueba | Datos usados | Procedimiento | Resultado esperado | Resultado obtenido | Estado |
 |---|---|---|---|---|---|---|
-| T01 | **Instalación limpia** | Repositorio clonado en carpeta vacía; diccionarios públicos del INE | Pasos 2–6 de [instalación](installation.md) en un entorno nuevo | Dependencias, esquema, catálogos, API e interfaz funcionando | `pip install` 9.8 s (43 paquetes); esquemas aplicados; `cargar_config` 2.4 s (33 reglas, 5 bases, 31 catálogos, 15 086 códigos); `npm ci` + build 5.5 s | ✅ Linux · ⬜ Windows |
+| T01 | **Instalación limpia** | Repositorio clonado en carpeta vacía; diccionarios oficiales del INE | Pasos 2–6 de [instalación](installation.md) en un entorno nuevo | Dependencias, esquema, catálogos, API e interfaz funcionando | `pip install` 9.8 s (43 paquetes); esquemas aplicados; `cargar_config` 2.4 s (33 reglas, 5 bases, 31 catálogos, 15 086 códigos); `npm ci` + build 5.5 s | ✅ |
 | T02 | **Inicio de servicios** | — | `uvicorn api.index:app`; `vite preview`; `/api/salud` | API e interfaz responden; protección por host | `{"ok":true,"login":false,"entorno":"local"}`; `/api/qa/bases` lista 5; host ajeno → 403 | ✅ |
 | T03 | **Carga de audio** | Audio de prueba (sin voz) y Supabase simulado | Pedir URL firmada, subir y crear trabajo | URL firmada, archivo en bucket privado, `job_id` | Flujo completo con almacenamiento simulado (`flujo.py`: «FLUJO OK»); límite de 50 MB validado en la interfaz | 🟡 con Storage simulado; en producción lo usa el equipo |
 | T04 | **Transcripción** | — | AssemblyAI / Deepgram / WhisperX | Turnos con hablante y tiempos | Sin grabación real autorizada; se probaron la carga de transcripciones (JSON/TXT) y la normalización de hablantes | 🟡 · **WER y DER no medidos** |
 | T05 | **Auditoría de entrevista** | Transcripción ENCOVI sintética con errores sembrados (A1-08, A1-11, A1-12, A2-10) | Asignar roles → evaluar → revisar reporte → editar una regla → calibración | Veredicto, puntaje por sección, riesgos con evidencia, edición recalcula | Evaluación simulada: 91 % global (A1 83 %, A2 97 %); tras editar una regla → 89 %; 51 reglas listadas; 30 pruebas unitarias de JEV en verde | ✅ con JEV simulado · **exactitud de JEV no medida** |
-| T06 | **Carga de PDF** | PDF sintético de 5 páginas; Cuestionario ENCOVI 2023 (72 p.) | Subir, preparar bloques y leer | Bloques leídos; página difícil no detiene el documento | Sintético: lectura completa con una página que fuerza lectura por zonas y marcador `pagina_no_leida`; ENCOVI en producción: el error de la página 6 se corrigió con tablas compactas y zonas | ✅ sintético · 🟡 ENCOVI (falta repetir la lectura completa tras la corrección) |
+| T06 | **Carga de PDF** | PDF sintético de 5 páginas; Cuestionario ENCOVI 2023 (72 p.) | Subir, preparar bloques y leer | Bloques leídos; página difícil no detiene el documento | Sintético: lectura completa con una página que fuerza lectura por zonas y marcador `pagina_no_leida`. ENCOVI en producción: las 72 páginas leídas y formulario generado tras corregir la página 6 con tablas compactas y zonas; costo 1.04 USD | ✅ |
 | T07 | **Generación de formulario** | Lecturas del PDF sintético | Armar formulario, editar, finalizar | Formulario v2 con secciones, pases, tablas y sección por persona | Formulario generado y finalizado; secciones abiertas se conservan al editar | ✅ |
 | T08 | **Validación de respuestas** | Formulario piloto y generado | Capturar con errores y finalizar | Errores de obligatoriedad, tipo, catálogo, rango; pases ocultan preguntas | 6 pruebas unitarias (pases, alcance por persona, conservación de respuestas inactivas) + recorrido en navegador: 422 con lista de errores y navegación a cada pregunta | ✅ |
 | T09 | **Conciliación** | `hogar15-transcripcion.json` sintética | Vincular con autorización, elegir encuestador, verificar, revisar hallazgos | Coincidencia / discrepancia / no verificable con evidencia; respuestas registradas sin cambios | Hallazgos con turnos de evidencia; revisión confirmada/descartada; sin autorización → 422 | ✅ con IA simulada · **exactitud no medida** |
@@ -76,6 +76,7 @@ Los totales suman registros de distinta naturaleza (lecturas, inscripciones, hec
 | Puntajes de calidad (reales) | 88.8 – 98.0 | Reportado |
 | Tiempo de procesamiento por base (reales) | 1 – 7 s | Reportado |
 | Reglas aplicadas | Data Audit 33 · Audio Audit 51 · Survey 5 tipos de validación + pases · QI 31 plantillas | Verificado en código |
+| Costo de IA para generar el formulario de la ENCOVI 2023 (72 páginas) | 1.04 USD por cuestionario | Medido en producción |
 | Base sintética: registros / hallazgos / sugerencias / puntaje / tiempo | 41 / 23 / 5 / 92.2 / 0.67 s | Verificado |
 | Correcciones aplicadas en la prueba de bandeja | aprobadas, elegidas y rechazadas; puntaje 91.2 → 91.6 | Verificado |
 | Concordancia con el INE (defunciones) | 100 % (8 841/8 841) | Reportado, reproducible con el script |

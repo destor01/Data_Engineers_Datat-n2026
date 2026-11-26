@@ -276,7 +276,7 @@ Las versiones y licencias de cada librería están en [licencias.md](licencias.m
 | Similitud de texto antes que IA | Solo IA | Los errores de escritura se resuelven gratis y sin red; la IA recibe solo lo que necesita interpretación |
 | Probabilidades (cumplió / incumplió / no se puede saber) en vez de sí o no | Clasificación binaria | Distinguir «no ocurrió» de «no hay evidencia» evita castigar al encuestador por una grabación incompleta |
 | Calibración con las correcciones del supervisor, ligada a la versión del modelo | Confiar en las probabilidades del modelo | Corrige el exceso o la falta de confianza del modelo con etiquetas reales; un cambio de versión no reutiliza parámetros inválidos |
-| Estado de Survey y Quality Improvement en un documento JSONB | Tablas normalizadas | Rapidez de desarrollo del prototipo; transacciones con bloqueo evitan pérdidas. Se documenta como mejora pendiente |
+| Estado de Survey y Quality Improvement en un documento JSONB | Tablas normalizadas | Rapidez de desarrollo del prototipo; transacciones con bloqueo evitan pérdidas. Se documenta como mejora propuesta |
 | Interfaz en TypeScript sin framework | React | Paquete pequeño y sin dependencias de ejecución salvo supabase-js; la pantalla anterior en React se migró a este modelo |
 | Claude Haiku 5.5 como modelo por defecto | Modelos más grandes | Costo unas 20 veces menor; cada modelo se puede cambiar por variable sin tocar el código |
 | Toda acción importante requiere una persona | Corrección automática total | El sistema propone con evidencia y la persona aprueba; responde al principio de no cambiar el significado de un dato sin justificación |

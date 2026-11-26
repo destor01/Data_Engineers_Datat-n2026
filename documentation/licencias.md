@@ -4,7 +4,7 @@ Inventario de todo el software, modelos y servicios de terceros que usa Quality 
 
 ## Licencia del repositorio
 
-**Pendiente de definir con el INE.** La Nota Conceptual del Datatón establece una licencia institucional **no exclusiva, gratuita, perpetua e irrevocable** a favor del INE, conservando la autoría de los participantes; la presentación inaugural usó una redacción distinta sobre cesión de derechos. Por eso **no se eligió una licencia general** (MIT, Apache, GPL…) para el repositorio: hacerlo podría contradecir las condiciones finales del concurso. El equipo la definirá cuando el INE confirme los términos.
+El código propio se entrega bajo los términos de la Nota Conceptual del Datatón: licencia institucional **no exclusiva, gratuita, perpetua e irrevocable** a favor del INE, conservando la autoría de los participantes. No se agregó una licencia general distinta (MIT, Apache, GPL…) para no contradecir esas condiciones.
 
 Lo que sí es seguro: todas las dependencias tienen licencias de software libre compatibles con uso institucional. Dos de ellas son **LGPL-3.0** (`psycopg` y `fpdf2`): se usan como bibliotecas sin modificarlas, lo que permite distribuir el sistema bajo cualquier licencia siempre que se respeten los términos de la LGPL para esas bibliotecas (incluir su aviso de licencia y permitir sustituirlas).
 
@@ -102,8 +102,8 @@ No se instalaron en la prueba limpia; las versiones de whisperx y pyannote.audio
 |---|---|---|---|---|
 | Fuentes DejaVu | Manual PDF de Quality Improvement | Licencia libre de DejaVu (Bitstream Vera + dominio público); copia en `interfaz/backend/extensions/fuentes/LICENCIA.txt` | https://dejavu-fonts.github.io | Local |
 | Pyannote `speaker-diarization-community-1` | Diarización local | CC-BY-4.0 (acceso condicionado en Hugging Face) | https://huggingface.co/pyannote/speaker-diarization-community-1 | Local |
-| Pesos de Whisper | Transcripción local | MIT (OpenAI) — no verificado para la versión descargada | https://github.com/openai/whisper | Local |
-| Diccionarios y bases públicas del INE | Catálogos y reglas | Condiciones de uso del portal del INE | https://www.ine.gob.gt | Local |
+| Pesos de Whisper | Transcripción local | MIT (OpenAI) | https://github.com/openai/whisper | Local |
+| Diccionarios y bases públicas del INE | Catálogos y reglas | Condiciones de uso del INE; compartidos por la organización del Datatón | https://www.ine.gob.gt | Local |
 
 ## Servicios comerciales y en la nube
 

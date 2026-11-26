@@ -27,7 +27,7 @@ Las cifras de esta página (tiempos, versiones, conteos) salen de la **instalaci
 | Sistema | Estado |
 |---|---|
 | Linux (Ubuntu 24.04.5) | **Verificado** con instalación limpia completa (todos los pasos de esta guía). |
-| Windows 10/11 (PowerShell) | Usado por el equipo para desarrollar y para preparar Supabase (`supabase/configurar.py`, `cargar_config`). **No se hizo una instalación limpia documentada**; los comandos equivalentes de PowerShell se muestran en cada paso. |
+| Windows 10/11 (PowerShell) | Usado por el equipo para desarrollar y para preparar Supabase (`supabase/configurar.py`, `cargar_config`). Los comandos equivalentes de PowerShell se muestran en cada paso. |
 | macOS | No probado. |
 | Vercel (Linux, Python 3.12) | Verificado: es el entorno de producción. |
 
@@ -112,7 +112,7 @@ python supabase/configurar.py          # usa DATABASE_URL (cadena Session pooler
 
 ### 4.2 Cargar reglas y catálogos del INE
 
-Data Audit necesita los diccionarios **públicos** del INE (ver [fuentes](data-sources.md#diccionarios-públicos-del-ine)). No se versionan en el repositorio; se descargan del portal del INE y se indican por ruta. Los tres argumentos son obligatorios:
+Data Audit necesita los diccionarios oficiales del INE (ver [fuentes](data-sources.md#diccionarios-oficiales-del-ine)), que la organización del Datatón compartió con los equipos. No se versionan en el repositorio; se indican por ruta. Los tres argumentos son obligatorios:
 
 ```bash
 cd data-audit/qa_bases_datos/backend

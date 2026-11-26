@@ -171,7 +171,7 @@ Formulario versionado, entrevistas con historial de eventos, hallazgos de concil
 | Entrada | Formato |
 |---|---|
 | Base enviada por la institución | XLSX, XLS, CSV o TXT (separador `;`, `,`, barra vertical o tabulador detectado; UTF-8 o Latin-1); tabla simple, una hoja por mes o formato ancho |
-| Definición de la base | `config/bases/*.yaml` + diccionarios públicos del INE → PostgreSQL |
+| Definición de la base | `config/bases/*.yaml` + diccionarios oficiales del INE → PostgreSQL |
 | Reglas | `config/reglas.yaml` (28) + 5 de llave única = 33 |
 | Período | año y mes declarados por quien sube |
 
@@ -289,7 +289,7 @@ Recomendaciones con evidencia y trazabilidad, manuales PDF por institución y ve
 
 ## Fuentes metodológicas
 
-- Diccionarios de datos públicos del INE (defunciones y nacimientos 2018–2022, detenidos PNC) y bases publicadas de cada estadística: ver [fuentes](data-sources.md).
+- Diccionarios de datos oficiales del INE (defunciones y nacimientos 2018–2022, detenidos PNC) y bases publicadas de cada estadística: ver [fuentes](data-sources.md).
 - Cuestionario y Manual del Encuestador ENCOVI 2023 (INE).
 - Regla de representatividad de calidad del aire indicada por el INE durante el Datatón.
 - Clasificación CIE-10 incluida en el diccionario de defunciones del INE.

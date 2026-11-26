@@ -4,13 +4,13 @@ Inventario de todas las fuentes usadas para construir, configurar y probar Quali
 
 | Tipo | Qué es | ¿Está en el repositorio? |
 |---|---|---|
-| **Pública INE** | Publicada por el INE en su portal (https://www.ine.gob.gt) | No se copia la base completa; se descarga del portal y se indica por ruta. Las reglas y alias derivados sí están versionados. |
+| **Oficial INE compartida por la organización** | Diccionarios y bases publicadas por el INE, enviados a los equipos por correo electrónico por un miembro de la organización del Datatón | No se copia la base completa; se indica por ruta. Las reglas y alias derivados sí están versionados. |
 | **Proporcionada por el INE** | Entregada a los equipos durante el Datatón (crudos institucionales) | **No.** Contiene datos personales; se usa solo localmente. |
 | **Sintética** | Creada por el equipo para pruebas y demostración; no describe personas reales | Sí, marcada como sintética. |
 
-**Fuente principal:** las bases y diccionarios públicos del INE de estadísticas vitales (defunciones y nacimientos), detenidos de la PNC, calidad del aire y emergencias, más el Cuestionario y el Manual del Encuestador de la ENCOVI 2023. De ellos salen los 31 catálogos, 15 086 códigos, 761 equivalencias, 235 variables y 340 alias que usa Data Audit, y las 51 reglas de Audio Audit.
+**Fuente principal:** las bases y diccionarios oficiales del INE de estadísticas vitales (defunciones y nacimientos), detenidos de la PNC, calidad del aire y emergencias, más el Cuestionario y el Manual del Encuestador de la ENCOVI 2023. De ellos salen los 31 catálogos, 15 086 códigos, 761 equivalencias, 235 variables y 340 alias que usa Data Audit, y las 51 reglas de Audio Audit.
 
-> Las fechas de descarga corresponden a la fecha de modificación de los archivos en la computadora del equipo (24–25 nov 2026) y la de recepción del paquete del INE a la fecha interna de sus archivos (23 nov 2026). Los enlaces apuntan al portal del INE; la URL exacta de cada archivo **está pendiente de confirmar por el equipo** y no se inventa aquí.
+> Los diccionarios y bases publicadas se recibieron por correo electrónico de la organización del Datatón el 24 y 25 de noviembre de 2026; el paquete de crudos institucionales tiene fecha interna del 23 de noviembre de 2026.
 
 ## Data Audit
 
@@ -30,11 +30,11 @@ Recibidas en el paquete «Conjunto de datos_ instituciones.zip» (fecha interna 
 **Finalidad:** probar Data Audit con datos reales y compararlo con lo publicado por el INE. Los resultados están en [Pruebas](testing.md#resultados-con-crudos-reales).
 **Manejo:** solo en las computadoras del equipo; nunca se subieron al repositorio, a la plataforma de demostración ni a servicios de IA (al codificador con IA solo van textos distintos de una columna, sin filas, nombres ni números de identificación; ver [seguridad](security.md)).
 
-### Diccionarios públicos del INE
+### Diccionarios oficiales del INE
 
 Configuran las variables, catálogos y códigos oficiales. `scripts/cargar_config.py` los lee **sin modificar el significado de ningún código** (ver [diccionario de datos](diccionario-datos.md)).
 
-| Archivo | Nombre oficial / contenido | Período | Formato | Uso | Descarga |
+| Archivo | Nombre oficial / contenido | Período | Formato | Uso | Recepción |
 |---|---|---|---|---|---|
 | diccionario-defunciones-2018-2022.xlsx | Diccionario de datos de defunciones (hojas Defunciones y CIE-10) | 2018–2022 | XLSX | Variables, catálogos y CIE-10 de defunciones (`--dicc-defunciones`) | 24–25 nov 2026 |
 | diccionario-nacimientos-2018-2022.xlsx | Diccionario de datos de nacimientos | 2018–2022 | XLSX | Variables y catálogos de nacimientos (`--dicc-nacimientos`) | 24–25 nov 2026 |
@@ -53,7 +53,7 @@ Sirven para comprobar que la salida corregida tenga las mismas columnas, orden y
 | base-monitoreo_aire_2025_insivumeh.xlsx | Base publicada de monitoreo de calidad del aire | 2025 | XLSX | Estructura (12 columnas) y meses conservados (comparación 11/19) |
 | 2.-base-eventos_22_-conred.csv | Base publicada de eventos de CONRED | 2022 | CSV separado por `;` | Estructura de emergencias (26 columnas) |
 
-Todas descargadas del portal del INE el 24–25 nov 2026; restricciones: las propias de la publicación del INE (datos ya anonimizados).
+Todas recibidas por correo electrónico de la organización del Datatón el 24–25 nov 2026; restricciones: las propias de la publicación del INE (datos ya anonimizados).
 
 ### Regla indicada por el INE
 

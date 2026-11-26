@@ -28,7 +28,7 @@ El detalle de tablas y buckets está en el [modelo de datos](modelo-datos.md).
 - **Salidas agregadas.** Bitácoras, reportes y recomendaciones de Quality Improvement trabajan con conteos y valores de catálogo, no con registros individuales. Los registros excluidos se guardan agrupados por motivo.
 - **Minimización hacia la IA.** Al codificador de Data Audit solo se envían los **textos distintos** de una columna de texto libre (p. ej., «PORTACION ILEGAL DE ARMA»), nunca filas completas, nombres, CUI ni fechas; las cadenas de 6 o más dígitos se enmascaran antes de enviarse, y la columna de quien certifica no se envía.
 - **Identificación de hablantes.** La diarización solo separa voces («SPEAKER_00»); no se usa biometría ni se reconoce la identidad de nadie. El rol lo asigna el auditor.
-- **Ejemplos públicos sintéticos.** Capturas de pantalla, video y ejemplos del repositorio usan exclusivamente datos sintéticos.
+- **Ejemplos públicos sintéticos.** Capturas de pantalla y ejemplos del repositorio usan exclusivamente datos sintéticos.
 
 **Límite:** eliminar columnas no garantiza anonimización. Campos de texto libre (descripciones de emergencias, motivos) o combinaciones raras de variables pueden permitir identificación indirecta. Antes de publicar una base, el INE debe aplicar su control de divulgación habitual.
 

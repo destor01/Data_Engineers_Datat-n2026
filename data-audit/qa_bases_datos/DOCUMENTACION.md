@@ -338,12 +338,12 @@ Los crudos de RENAP y PNC traen CUI, nombres, direcciones y datos de investigaci
 | Opción de IA local con Ollama: nada sale de la computadora | Hecho |
 | Auditoría de acciones: subir, reprocesar, aprobar, rechazar | Hecho |
 | Claves y contraseñas solo en `.env`, fuera de Git; crudos y almacén fuera del repositorio | Hecho |
-| Login y permisos por rol (institución, analista, admin) | Pendiente: hoy el usuario es un email opcional |
-| Cifrado del almacén de archivos originales | Pendiente |
-| HTTPS | Pendiente (se resuelve con Nginx en el despliegue) |
-| Política de retención: borrar originales después de aprobada la carga | Pendiente |
+| Inicio de sesión | Hecho en la plataforma (Supabase Auth, sin registro público); permisos por rol: mejora propuesta |
+| Almacén de originales privado | Hecho (bucket privado y URLs firmadas de 5 minutos); cifrado propio adicional: mejora propuesta |
+| HTTPS | Hecho en el despliegue en Vercel |
+| Política de retención: borrar originales después de aprobada la carga | Mejora propuesta |
 
-Antes de usarlo con datos reales fuera del datatón, hay que completar los cuatro pendientes y confirmar con el INE si puede usar un servicio de IA externo o debe usar el modelo local.
+Para uso con datos reales fuera del Datatón se recomienda agregar permisos por rol y retención automática, y elegir entre el servicio de IA externo y el modelo local según la política del INE.
 
 ## Limitaciones y mejoras
 
