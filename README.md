@@ -7,6 +7,7 @@
 | Sistema en línea | https://dataton-six.vercel.app (acceso con cuenta; ver [Accesos](documentation/accesos.md)) |
 | Guía para el jurado | [Cómo evaluar Quality Audit en 30 minutos](documentation/guia-jurado.md) |
 | Repositorio | https://github.com/destor01/Data_Engineers_Datat-n2026 |
+| Link del Video | link |
 
 ---
 
