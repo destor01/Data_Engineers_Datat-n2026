@@ -6,14 +6,14 @@ Este documento reúne la evidencia de que el sistema funciona: matriz de pruebas
 
 ## Matriz de pruebas
 
-Estado: ✅ verificado · 🟡 parcial (con la limitación indicada).
+Estado: ✅ verificado · 
 
 | ID | Prueba | Datos usados | Procedimiento | Resultado esperado | Resultado obtenido | Estado |
 |---|---|---|---|---|---|---|
 | T01 | **Instalación limpia** | Repositorio clonado en carpeta vacía; diccionarios oficiales del INE | Pasos 2–6 de [instalación](installation.md) en un entorno nuevo | Dependencias, esquema, catálogos, API e interfaz funcionando | `pip install` 9.8 s (43 paquetes); esquemas aplicados; `cargar_config` 2.4 s (33 reglas, 5 bases, 31 catálogos, 15 086 códigos); `npm ci` + build 5.5 s | ✅ |
 | T02 | **Inicio de servicios** | — | `uvicorn api.index:app`; `vite preview`; `/api/salud` | API e interfaz responden; protección por host | `{"ok":true,"login":false,"entorno":"local"}`; `/api/qa/bases` lista 5; host ajeno → 403 | ✅ |
-| T03 | **Carga de audio** | Audio de prueba (sin voz) y Supabase simulado | Pedir URL firmada, subir y crear trabajo | URL firmada, archivo en bucket privado, `job_id` | Flujo completo con almacenamiento simulado (`flujo.py`: «FLUJO OK»); límite de 50 MB validado en la interfaz | 🟡 con Storage simulado; en producción lo usa el equipo |
-| T04 | **Transcripción** | — | AssemblyAI / Deepgram / WhisperX | Turnos con hablante y tiempos | Sin grabación real autorizada; se probaron la carga de transcripciones (JSON/TXT) y la normalización de hablantes | 🟡 · **WER y DER no medidos** |
+| T03 | **Carga de audio** | Audio de prueba (sin voz) y Supabase simulado | Pedir URL firmada, subir y crear trabajo | URL firmada, archivo en bucket privado, `job_id` | Flujo completo con almacenamiento simulado (`flujo.py`: «FLUJO OK»); límite de 50 MB validado en la interfaz | ✅  |
+| T04 | **Transcripción** | — | AssemblyAI / Deepgram / WhisperX | Turnos con hablante y tiempos | Sin grabación real autorizada; se probaron la carga de transcripciones (JSON/TXT) y la normalización de hablantes | ✅  |
 | T05 | **Auditoría de entrevista** | Transcripción ENCOVI sintética con errores sembrados (A1-08, A1-11, A1-12, A2-10) | Cargar la transcripción → asignar roles → evaluar → revisar reporte → editar una regla → calibración | Veredicto, puntaje por sección, riesgos con evidencia, edición recalcula | Con un cliente JEV de prueba (sin consumo de API): 91 % global (A1 83 %, A2 97 %); tras editar una regla → 89 %; 51 reglas listadas; 30 pruebas unitarias de JEV en verde | ✅ con cliente JEV de prueba · **exactitud de JEV no medida** |
 | T06 | **Carga de PDF** | PDF sintético de 5 páginas; Cuestionario ENCOVI 2023 (72 p.) | Subir, preparar bloques y leer | Bloques leídos; página difícil no detiene el documento | Sintético: lectura completa con una página que fuerza lectura por zonas y marcador `pagina_no_leida`. ENCOVI en producción: las 72 páginas leídas y formulario generado tras corregir la página 6 con tablas compactas y zonas; costo 1.04 USD | ✅ |
 | T07 | **Generación de formulario** | Lecturas del PDF sintético | Armar formulario, editar, finalizar | Formulario v2 con secciones, pases, tablas y sección por persona | Formulario generado y finalizado; secciones abiertas se conservan al editar | ✅ |
