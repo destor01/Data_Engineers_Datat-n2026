@@ -23,6 +23,7 @@ DEFAULT_AUDIO_BUCKET = os.environ.get("SUPABASE_STORAGE_BUCKET", "audio-intervie
 JOBS_TABLE = "audio_audit_jobs"
 RULE_OVERRIDES_TABLE = "audio_audit_rule_overrides"
 EVAL_EDITS_TABLE = "audio_audit_evaluation_edits"
+CALIBRATION_TABLE = "audio_audit_calibration"
 
 
 def _now_iso() -> str:
@@ -58,6 +59,7 @@ class AuditStore:
         self._memory_jobs: dict[str, dict[str, Any]] = {}
         self._memory_overrides: dict[str, dict[str, Any]] = {}
         self._memory_edits: list[dict[str, Any]] = []
+        self._memory_calibrations: dict[str, dict[str, Any]] = {}
         self._loaded_local = False
 
     def is_supabase_configured(self) -> bool:
@@ -98,17 +100,18 @@ class AuditStore:
                 self._memory_jobs = dict(raw.get("jobs") or {})
                 self._memory_overrides = dict(raw.get("rule_overrides") or {})
                 self._memory_edits = list(raw.get("evaluation_edits") or [])
+                self._memory_calibrations = dict(raw.get("calibrations") or {})
         except Exception as exc:
             logger.warning("No se pudo leer almacenamiento local %s: %s", LOCAL_STORE_PATH, exc)
 
     def _flush_local(self) -> None:
         try:
             LOCAL_DATA_DIR.mkdir(parents=True, exist_ok=True)
-            # Strip transient runtime-only paths only when serializing if unserializable
             payload = {
                 "jobs": self._memory_jobs,
                 "rule_overrides": self._memory_overrides,
-                "evaluation_edits": self._memory_edits[-200:],
+                "evaluation_edits": self._memory_edits[-5000:],
+                "calibrations": self._memory_calibrations,
             }
             tmp = LOCAL_STORE_PATH.with_suffix(".tmp")
             tmp.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -246,7 +249,7 @@ class AuditStore:
                 created_ts = datetime.fromisoformat(raw_created.replace("Z", "+00:00")).timestamp()
             except ValueError:
                 pass
-        base = {
+        return {
             "job_id": row["id"],
             "filename": row.get("filename") or "entrevista",
             "source": row.get("source") or "audio",
@@ -272,7 +275,6 @@ class AuditStore:
             "evaluation": row.get("evaluation"),
             "eval_error": row.get("eval_error"),
         }
-        return base
 
     def upsert_job(self, job: dict[str, Any]) -> dict[str, Any]:
         job = dict(job)
@@ -321,7 +323,6 @@ class AuditStore:
             return None
 
         if current is not None and self.is_supabase_configured():
-            # Avoid hitting Supabase on every 1% local GPU progress tick; sync on state transitions or cloud jobs
             should_sync_remote = (
                 IS_VERCEL
                 or "status" in updates
@@ -355,10 +356,15 @@ class AuditStore:
             if job_id in self._memory_jobs:
                 local_copy = dict(self._memory_jobs[job_id])
 
-        # If running locally and job is actively processing in local thread, local memory is freshest
-        if local_copy and not IS_VERCEL and (
-            local_copy.get("status") == "processing" or local_copy.get("eval_status") == "processing"
-        ) and local_copy.get("stt_provider") in (None, "local_whisperx"):
+        if (
+            local_copy
+            and not IS_VERCEL
+            and (
+                local_copy.get("status") == "processing"
+                or local_copy.get("eval_status") == "processing"
+            )
+            and local_copy.get("stt_provider") in (None, "local_whisperx")
+        ):
             return local_copy
 
         if self.is_supabase_configured():
@@ -488,9 +494,9 @@ class AuditStore:
                 logger.warning("Error eliminando override de regla en Supabase: %s", exc)
 
     # ------------------------------------------------------------------
-    # Audit Trail of Human Evaluation Edits
+    # Audit Trail of Human Evaluation Edits (with raw JEV probs for calibration)
     # ------------------------------------------------------------------
-    def log_evaluation_edit(self, entry: dict[str, Any]) -> None:
+    def log_evaluation_edit(self, entry: dict[str, Any]) -> dict[str, Any]:
         record = {
             "job_id": entry["job_id"],
             "rule_id": entry["rule_id"],
@@ -499,7 +505,16 @@ class AuditStore:
             "new_outcome": entry.get("new_outcome"),
             "auditor_comment": entry.get("auditor_comment"),
             "propagate_to_future": bool(entry.get("propagate_to_future", False)),
-            "created_at": _now_iso(),
+            "window_index": entry.get("window_index"),
+            "question_key": entry.get("question_key"),
+            "question_type": entry.get("question_type"),
+            "calibration_group": entry.get("calibration_group"),
+            "raw_probability": entry.get("raw_probability"),
+            "raw_probabilities": entry.get("raw_probabilities"),
+            "gold_label": entry.get("gold_label"),
+            "model_version": entry.get("model_version"),
+            "is_mock": bool(entry.get("is_mock", False)),
+            "created_at": entry.get("created_at") or _now_iso(),
         }
         with self._lock:
             self._ensure_local_loaded()
@@ -516,12 +531,110 @@ class AuditStore:
                 )
                 if resp.status_code not in (200, 201, 204):
                     logger.warning(
-                        "Supabase log_evaluation_edit HTTP %s: %s",
+                        "Supabase log_evaluation_edit HTTP %s (verifica haber ejecutado schema.sql actualizado): %s",
                         resp.status_code,
-                        resp.text[:200],
+                        resp.text[:250],
                     )
             except Exception as exc:
                 logger.warning("Error registrando bitácora de edición en Supabase: %s", exc)
+        return record
+
+    def list_evaluation_edits(
+        self,
+        *,
+        model_version: str | None = None,
+        limit: int = 5000,
+    ) -> list[dict[str, Any]]:
+        if self.is_supabase_configured():
+            try:
+                params: dict[str, str] = {
+                    "select": "*",
+                    "order": "created_at.asc",
+                    "limit": str(limit),
+                }
+                if model_version:
+                    params["model_version"] = f"eq.{model_version}"
+                resp = self._session.get(
+                    self._rest_url(EVAL_EDITS_TABLE),
+                    headers=self._headers(),
+                    params=params,
+                    timeout=12,
+                )
+                if resp.status_code == 200:
+                    rows = resp.json()
+                    if isinstance(rows, list):
+                        return rows
+            except Exception as exc:
+                logger.warning("Error leyendo ediciones para calibración desde Supabase: %s", exc)
+
+        with self._lock:
+            self._ensure_local_loaded()
+            items = [dict(e) for e in self._memory_edits]
+        if model_version:
+            items = [e for e in items if e.get("model_version") == model_version]
+        return items[-limit:]
+
+    # ------------------------------------------------------------------
+    # Fitted Calibration Persistence (Platt + Temperature per model version)
+    # ------------------------------------------------------------------
+    def get_calibration(self, model_version: str) -> dict[str, Any] | None:
+        if self.is_supabase_configured():
+            try:
+                resp = self._session.get(
+                    self._rest_url(CALIBRATION_TABLE),
+                    headers=self._headers(),
+                    params={"model_version": f"eq.{model_version}", "select": "*", "limit": "1"},
+                    timeout=10,
+                )
+                if resp.status_code == 200:
+                    rows = resp.json()
+                    if isinstance(rows, list) and rows:
+                        row = dict(rows[0])
+                        with self._lock:
+                            self._ensure_local_loaded()
+                            self._memory_calibrations[model_version] = row
+                        return row
+            except Exception as exc:
+                logger.warning("Error leyendo calibración desde Supabase: %s", exc)
+
+        with self._lock:
+            self._ensure_local_loaded()
+            item = self._memory_calibrations.get(model_version)
+            return dict(item) if item else None
+
+    def save_calibration(self, model_version: str, payload: dict[str, Any]) -> dict[str, Any]:
+        record = {
+            "model_version": model_version,
+            "min_labels": int(payload.get("min_labels") or 30),
+            "total_labels": int(payload.get("total_labels") or 0),
+            "is_calibrated": bool(payload.get("is_calibrated", False)),
+            "calibrator": payload.get("calibrator") or {"noul_platt": {}, "choice_temperature": {}},
+            "groups": payload.get("groups") or {},
+            "updated_at": _now_iso(),
+        }
+        with self._lock:
+            self._ensure_local_loaded()
+            self._memory_calibrations[model_version] = record
+            self._flush_local()
+
+        if self.is_supabase_configured():
+            try:
+                resp = self._session.post(
+                    self._rest_url(CALIBRATION_TABLE),
+                    headers=self._headers(prefer="resolution=merge-duplicates,return=representation"),
+                    params={"on_conflict": "model_version"},
+                    json=record,
+                    timeout=12,
+                )
+                if resp.status_code not in (200, 201):
+                    logger.warning(
+                        "Supabase save_calibration HTTP %s: %s",
+                        resp.status_code,
+                        resp.text[:250],
+                    )
+            except Exception as exc:
+                logger.warning("Error guardando calibración en Supabase: %s", exc)
+        return record
 
 
 store = AuditStore()

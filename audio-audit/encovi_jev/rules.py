@@ -4,12 +4,13 @@ An Instruction is one line of the rules file (e.g. A1-01). It owns one or more J
 and a `kind` that says how the answers become (followed, broken, unknown) probabilities for
 one transcript window:
 
-  kind         Jev question(s)                                   window outcome (c, v, u)
-  -----------  ------------------------------------------------  ---------------------------------
-  OBLIGATION   1+ Noul, true = the required act happened         (P(all parts), 1 - P(all parts), 0)
-  PROHIBITION  1+ Noul, true = the forbidden act happened        (1 - P(any part), P(any part), 0)
-  CONDITIONAL  1 Choice {trigger absent | handled | mishandled}  (p_handled, p_mishandled, p_absent)
-  EVIDENCE     1 Choice {done | sign of not done | no mention}   (p_done, p_not_done, p_no_mention)
+  kind         Jev question(s)                                     window outcome (c, v, u)
+  -----------  --------------------------------------------------  ---------------------------------
+  OBLIGATION   1+ Noul, true = the required act happened           (P(all parts), 1 - P(all parts), 0)
+  PROHIBITION  1+ Noul, true = the forbidden act happened          (1 - P(any part), P(any part), 0)
+  CONDITIONAL  Stage 1 Noul trigger + Stage 2 Choice (only where   (0, 0, 1) if trigger < threshold;
+               trigger fired in that window)                       else trigger-gated (p_ok, p_bad, p_na)
+  EVIDENCE     1 Choice {done | sign of not done | no mention}     (p_done, p_not_done, p_no_mention)
 
 `scope` says which windows the questions are asked on. OBLIGATION and EVIDENCE are single-window
 by design (opening or closing); PROHIBITION and CONDITIONAL may span every window.
@@ -67,6 +68,7 @@ class Instruction:
     weight: int = 1                # proposed severity 1-3; agree on it before looking at results
     verifiability: str = "alta"    # alta / media / baja: how much of the rule is audible
     note: str = ""
+    trigger: Question | None = None  # Stage-1 Noul gate for CONDITIONAL rules ("did X happen?")
 
     def __post_init__(self) -> None:
         if not self.questions:
@@ -79,6 +81,11 @@ class Instruction:
                 raise ValueError(f"{self.id}: {self.kind.value} needs exactly one choice question")
             if set(self.questions[0].roles) != set(ROLES):
                 raise ValueError(f"{self.id}: choice must map roles {ROLES}")
+        if self.trigger is not None:
+            if self.kind is not Kind.CONDITIONAL:
+                raise ValueError(f"{self.id}: trigger is only valid for conditional instructions")
+            if self.trigger.type != "noul":
+                raise ValueError(f"{self.id}: trigger question must be noul")
         if self.kind in (Kind.OBLIGATION, Kind.EVIDENCE) and self.scope is Scope.ALL:
             raise ValueError(f"{self.id}: {self.kind.value} is single-window; use OPENING or CLOSING")
         if self.weight not in (1, 2, 3):
@@ -131,10 +138,14 @@ GATES = {Scope.OPENING: GATE_OPENING, Scope.CLOSING: GATE_CLOSING}
 # --- helpers over a set of sections -----------------------------------------------------------
 
 def question_registry(sections: Iterable[Section]) -> dict[str, Question]:
-    """All distinct questions by key (a question may be shared by two instructions)."""
+    """All distinct questions by key (including gates and conditional triggers)."""
     reg: dict[str, Question] = {g.key: g for g in GATES.values()}
     for sec in sections:
         for ins in sec.instructions:
+            if ins.trigger is not None:
+                if ins.trigger.key in reg and reg[ins.trigger.key] != ins.trigger:
+                    raise ValueError(f"trigger key {ins.trigger.key} defined twice with different content")
+                reg[ins.trigger.key] = ins.trigger
             for q in ins.questions:
                 if q.key in reg and reg[q.key] != q:
                     raise ValueError(f"question key {q.key} defined twice with different content")
@@ -142,8 +153,18 @@ def question_registry(sections: Iterable[Section]) -> dict[str, Question]:
     return reg
 
 
-def questions_for_scopes(sections: Iterable[Section], scopes: Iterable[Scope]) -> list[Question]:
-    """Questions to ask on a window that plays the given scopes, gates first, without duplicates."""
+def questions_for_scopes(
+    sections: Iterable[Section],
+    scopes: Iterable[Scope],
+    *,
+    stage1_only: bool = True,
+) -> list[Question]:
+    """Questions to ask on a window that plays the given scopes, gates first, without duplicates.
+
+    When `stage1_only=True` (default), CONDITIONAL instructions with a `trigger` ask ONLY their
+    Stage-1 trigger question here; their Stage-2 response question is asked only on windows where
+    the trigger actually fired.
+    """
     scopes = set(scopes)
     out: dict[str, Question] = {}
     for scope in (Scope.OPENING, Scope.CLOSING):
@@ -152,17 +173,22 @@ def questions_for_scopes(sections: Iterable[Section], scopes: Iterable[Scope]) -
     for sec in sections:
         for ins in sec.instructions:
             if ins.scope in scopes:
-                for q in ins.questions:
-                    out.setdefault(q.key, q)
+                if stage1_only and ins.trigger is not None:
+                    out.setdefault(ins.trigger.key, ins.trigger)
+                else:
+                    for q in ins.questions:
+                        out.setdefault(q.key, q)
     return list(out.values())
 
 
 def calibration_group(question_key: str, sections: Iterable[Section]) -> str:
-    """Calibration is pooled per kind (300 gold labels cannot calibrate 50 questions one by one)."""
+    """Calibration is pooled per kind/role (gate, trigger, obligation, prohibition, conditional, evidence)."""
     if question_key in {g.key for g in GATES.values()}:
         return "gate"
     for sec in sections:
         for ins in sec.instructions:
+            if ins.trigger is not None and ins.trigger.key == question_key:
+                return "trigger"
             if any(q.key == question_key for q in ins.questions):
                 return ins.kind.value
     raise KeyError(question_key)

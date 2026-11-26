@@ -1,9 +1,8 @@
 """Calibrate Jev's probabilities on your own gold labels before combining them.
 
-Why: section scores multiply many probabilities, so a small systematic error per window grows
-(0.02 of spurious violation probability in each of 11 windows becomes 1 - 0.98**11 = 0.20).
+Why: raw LLM/decision probabilities can be systematically over- or under-confident.
 
-Fitted per group (gate, obligation, prohibition, conditional, evidence), pooled across questions:
+Fitted per group (gate, trigger, obligation, prohibition, conditional, evidence), pooled across questions:
   Noul   -> Platt scaling        p' = sigmoid(a * logit(p) + b)
   Choice -> temperature scaling  p'_k proportional to p_k ** (1 / T)
 Groups without enough labels stay uncalibrated (identity).
@@ -21,7 +20,7 @@ import csv
 import json
 import math
 from pathlib import Path
-from typing import Mapping, Sequence
+from typing import Any, Mapping, Sequence
 
 EPS = 1e-4
 MIN_LABELS = 30
@@ -67,14 +66,24 @@ class Calibrator:
             return probs
         return _normalize({k: max(EPS, v) ** (1.0 / temp) for k, v in probs.items()})
 
+    @property
+    def is_fitted(self) -> bool:
+        return bool(self.noul_params or self.choice_params)
+
     def to_dict(self) -> dict:
         return {"noul_platt": {g: list(ab) for g, ab in self.noul_params.items()},
                 "choice_temperature": self.choice_params}
 
     @classmethod
+    def from_dict(cls, data: Mapping[str, Any] | None) -> "Calibrator":
+        if not data:
+            return cls()
+        return cls(data.get("noul_platt"), data.get("choice_temperature"))
+
+    @classmethod
     def load(cls, path: str | Path) -> "Calibrator":
         d = json.loads(Path(path).read_text(encoding="utf-8"))
-        return cls(d.get("noul_platt"), d.get("choice_temperature"))
+        return cls.from_dict(d)
 
     def save(self, path: str | Path) -> None:
         Path(path).write_text(json.dumps(self.to_dict(), indent=2), encoding="utf-8")
@@ -139,56 +148,109 @@ def ece(ps: Sequence[float], ys: Sequence[int], bins: int = 10) -> float:
     return err
 
 
-def _parse_label(s: str) -> int | None:
-    s = s.strip().lower()
-    if s in {"1", "si", "sí", "true", "yes", "y"}:
+def _parse_label(s: Any) -> int | None:
+    if isinstance(s, bool):
+        return int(s)
+    if isinstance(s, (int, float)) and s in (0, 1):
+        return int(s)
+    text = str(s or "").strip().lower()
+    if text in {"1", "si", "sí", "true", "yes", "y"}:
         return 1
-    if s in {"0", "no", "false", "n"}:
+    if text in {"0", "no", "false", "n"}:
         return 0
     return None
 
 
-def fit_from_csv(path: str | Path, min_labels: int = MIN_LABELS) -> tuple[Calibrator, dict]:
-    nouls: dict[str, tuple[list, list]] = {}
-    choices: dict[str, tuple[list, list]] = {}
-    with open(path, newline="", encoding="utf-8") as fh:
-        for row in csv.DictReader(fh):
-            label = (row.get("label") or "").strip()
-            if not label:
+def fit_from_records(
+    records: Sequence[Mapping[str, Any]],
+    min_labels: int = MIN_LABELS,
+) -> tuple[Calibrator, dict]:
+    """Fit Platt (noul) and temperature (choice) calibrators from in-memory supervisor edit records.
+
+    Each record should have keys: `group`, `question_type` ('noul' | 'choice'), `raw` (float for noul,
+    dict or JSON string for choice), and `label`.
+    """
+    nouls: dict[str, tuple[list[float], list[int]]] = {}
+    choices: dict[str, tuple[list[dict[str, float]], list[str]]] = {}
+
+    for row in records:
+        label = row.get("label")
+        if label is None or str(label).strip() == "":
+            continue
+        group = str(row.get("group") or "").strip()
+        qtype = str(row.get("question_type") or "").strip().lower()
+        raw = row.get("raw")
+        if not group or raw is None:
+            continue
+
+        if qtype == "noul":
+            y = _parse_label(label)
+            if y is None:
                 continue
-            group = row["group"]
-            if row["question_type"] == "noul":
-                y = _parse_label(label)
-                if y is not None:
-                    nouls.setdefault(group, ([], []))[0].append(float(row["raw"]))
-                    nouls[group][1].append(y)
-            else:
-                probs = json.loads(row["raw"])
-                if label in probs:
-                    choices.setdefault(group, ([], []))[0].append(probs)
-                    choices[group][1].append(label)
+            try:
+                p_val = float(raw)
+            except (TypeError, ValueError):
+                continue
+            nouls.setdefault(group, ([], []))[0].append(p_val)
+            nouls[group][1].append(y)
+        elif qtype == "choice":
+            probs = json.loads(raw) if isinstance(raw, str) else dict(raw) if isinstance(raw, Mapping) else None
+            label_str = str(label).strip()
+            if isinstance(probs, dict) and label_str in probs:
+                choices.setdefault(group, ([], []))[0].append(
+                    {str(k): float(v) for k, v in probs.items()}
+                )
+                choices[group][1].append(label_str)
+
     report, noul_params, temps = {}, {}, {}
     for g, (ps, ys) in nouls.items():
-        entry = {"n": len(ps), "brier_raw": round(brier(ps, ys), 4), "ece_raw": round(ece(ps, ys), 4)}
+        entry: dict[str, Any] = {
+            "n": len(ps),
+            "min_labels": min_labels,
+            "positives": int(sum(ys)),
+            "negatives": int(len(ys) - sum(ys)),
+            "fitted": False,
+            "brier_raw": round(brier(ps, ys), 4),
+            "ece_raw": round(ece(ps, ys), 4),
+        }
         if len(ps) >= min_labels and 0 < sum(ys) < len(ys):
             a, b = fit_platt(ps, ys)
             cal = [_sigmoid(a * _logit(p) + b) for p in ps]
             noul_params[g] = (a, b)
-            entry.update(a=round(a, 4), b=round(b, 4), brier_cal_in_sample=round(brier(cal, ys), 4),
-                         ece_cal_in_sample=round(ece(cal, ys), 4))
+            entry.update(
+                fitted=True,
+                a=round(a, 4),
+                b=round(b, 4),
+                brier_cal_in_sample=round(brier(cal, ys), 4),
+                ece_cal_in_sample=round(ece(cal, ys), 4),
+            )
         else:
             entry["note"] = f"not fitted: needs >= {min_labels} labels with both outcomes"
         report[f"noul/{g}"] = entry
+
     for g, (pds, ys) in choices.items():
         acc = sum(max(p, key=p.get) == y for p, y in zip(pds, ys)) / len(ys)
-        entry = {"n": len(ys), "accuracy": round(acc, 4)}
+        entry = {
+            "n": len(ys),
+            "min_labels": min_labels,
+            "fitted": False,
+            "accuracy": round(acc, 4),
+        }
         if len(ys) >= min_labels:
             temps[g] = fit_temperature(pds, ys)
+            entry["fitted"] = True
             entry["temperature"] = round(temps[g], 4)
         else:
             entry["note"] = f"not fitted: needs >= {min_labels} labels"
         report[f"choice/{g}"] = entry
+
     return Calibrator(noul_params, temps), report
+
+
+def fit_from_csv(path: str | Path, min_labels: int = MIN_LABELS) -> tuple[Calibrator, dict]:
+    with open(path, newline="", encoding="utf-8") as fh:
+        rows = list(csv.DictReader(fh))
+    return fit_from_records(rows, min_labels=min_labels)
 
 
 def main(argv: Sequence[str] | None = None) -> None:

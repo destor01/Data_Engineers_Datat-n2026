@@ -6,6 +6,37 @@ export type RuleKind = "obligation" | "prohibition" | "conditional" | "evidence"
 
 export type OverrideStatus = "keep" | "followed" | "broken" | "unknown" | "custom" | "reset";
 
+export interface CalibrationGroupMetrics {
+  n: number;
+  min_labels: number;
+  fitted: boolean;
+  positives?: number;
+  negatives?: number;
+  a?: number;
+  b?: number;
+  brier_raw?: number;
+  ece_raw?: number;
+  brier_cal_in_sample?: number;
+  ece_cal_in_sample?: number;
+  temperature?: number;
+  accuracy?: number;
+  note?: string;
+}
+
+export interface CalibrationStatus {
+  model_version: string;
+  is_calibrated: boolean;
+  total_labels: number;
+  min_labels: number;
+  fitted_groups?: string[];
+  calibrator?: {
+    noul_platt: Record<string, [number, number]>;
+    choice_temperature: Record<string, number>;
+  };
+  groups: Record<string, CalibrationGroupMetrics>;
+  updated_at?: string | null;
+}
+
 export interface SystemStatus {
   local_whisper_available: boolean;
   cuda_available: boolean;
@@ -25,6 +56,7 @@ export interface SystemStatus {
   example_available: boolean;
   default_model: string;
   customized_rules_count: number;
+  calibration?: CalibrationStatus;
 }
 
 export interface TranscriptTurn {
@@ -54,6 +86,15 @@ export interface WorstWindowInfo {
   time?: [number | null, number | null] | null;
 }
 
+export interface WindowScoreItem {
+  window: number;
+  followed: number;
+  broken: number;
+  unknown: number;
+  p_trigger?: number;
+  triggered?: boolean;
+}
+
 export interface EvaluatedInstruction {
   id: string;
   section: string;
@@ -69,10 +110,14 @@ export interface EvaluatedInstruction {
   p_followed_if_applicable: number | null;
   gate: number | null;
   note: string;
+  windows?: WindowScoreItem[];
   worst_window?: WorstWindowInfo;
   expected_broken_windows?: number;
   windows_flagged?: number;
   windows_review?: number;
+  flagged_per_hour?: number;
+  triggered_windows?: number;
+  max_trigger_prob?: number | null;
   original_outcome?: {
     p_followed: number;
     p_broken: number;
@@ -85,9 +130,12 @@ export interface EvaluatedInstruction {
 
 export interface TopRiskItem {
   id: string;
+  kind?: RuleKind;
   section: string;
   section_title: string;
   p_broken: number;
+  mean_p_broken?: number;
+  windows_flagged?: number;
   text: string;
   worst_window: number | null;
   time?: [number | null, number | null] | null;
@@ -103,8 +151,11 @@ export interface SectionSummary {
   expected_broken: number | null;
   compliance_rate: number | null;
   compliance_rate_weighted: number | null;
-  p_all_followed: number | null;
-  p_all_followed_bounds: [number | null, number | null];
+  conduct_flagged_windows?: number;
+  conduct_flagged_per_hour?: number;
+  flagged_windows_total?: number;
+  flagged_windows_per_hour?: number;
+  duration_hours?: number;
   p_at_most_1_broken: number | null;
   p_rate_at_least_80?: number | null;
   p_rate_at_least_90?: number | null;
@@ -123,6 +174,12 @@ export interface OverallSummary {
   expected_followed: number;
   expected_broken: number;
   coverage: number | null;
+  duration_hours?: number;
+  conduct_flagged_windows?: number;
+  conduct_flagged_per_hour?: number;
+  flagged_windows_total?: number;
+  flagged_windows_per_hour?: number;
+  procedural_high_risk_count?: number;
   high_risk_count: number;
   review_count: number;
   manual_edit_count?: number;
@@ -138,6 +195,12 @@ export interface JevEvaluationReport {
   gates: {
     opening?: number | null;
     closing?: number | null;
+  };
+  calibration?: {
+    is_calibrated: boolean;
+    fitted_groups: string[];
+    total_labels: number | null;
+    min_labels: number;
   };
   windows: Array<{
     window: number;
@@ -197,6 +260,7 @@ export interface JobSummary {
 export interface RuleQuestionSpec {
   key: string;
   type: "noul" | "choice";
+  is_trigger?: boolean;
   instructions: string;
   criteria: Record<string, string>;
   roles: Record<string, string>;
@@ -246,6 +310,7 @@ export interface EvaluationRuleEditRequest {
     p_unknown: number;
   } | null;
   auditor_comment?: string | null;
+  window_index?: number | null;
   update_future_rule: boolean;
   rule_override?: RuleOverrideInput | null;
 }

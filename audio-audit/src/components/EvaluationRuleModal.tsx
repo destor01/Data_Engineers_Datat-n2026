@@ -44,6 +44,7 @@ export const EvaluationRuleModal: React.FC<EvaluationRuleModalProps> = ({
   onResetGlobalRule,
 }) => {
   const [overrideStatus, setOverrideStatus] = useState<OverrideStatus>("keep");
+  const [selectedWindow, setSelectedWindow] = useState<number | null>(null);
   const [customFollowed, setCustomFollowed] = useState<number>(100);
   const [customBroken, setCustomBroken] = useState<number>(0);
   const [customUnknown, setCustomUnknown] = useState<number>(0);
@@ -75,6 +76,11 @@ export const EvaluationRuleModal: React.FC<EvaluationRuleModalProps> = ({
         setOverrideStatus("keep");
       }
       setAuditorComment(existingMo?.comment || "");
+      setSelectedWindow(
+        evaluatedRule.worst_window?.window ??
+          evaluatedRule.windows?.[0]?.window ??
+          0
+      );
       setCustomFollowed(Math.round((evaluatedRule.p_followed || 0) * 100));
       setCustomBroken(Math.round((evaluatedRule.p_broken || 0) * 100));
       setCustomUnknown(Math.round((evaluatedRule.p_unknown || 0) * 100));
@@ -142,6 +148,7 @@ export const EvaluationRuleModal: React.FC<EvaluationRuleModalProps> = ({
                 }
               : null,
           auditor_comment: auditorComment,
+          window_index: selectedWindow,
           update_future_rule: updateFutureRule || reEvaluateNow,
           rule_override: updateFutureRule || reEvaluateNow ? buildRuleOverridePayload() : null,
         };
@@ -321,6 +328,33 @@ export const EvaluationRuleModal: React.FC<EvaluationRuleModalProps> = ({
                   onChange={(e) => setAuditorComment(e.target.value)}
                 />
               </div>
+
+              {evaluatedRule.windows && evaluatedRule.windows.length > 1 && (
+                <div className="field" style={{ marginTop: 10 }}>
+                  <label htmlFor="windowSelectInput">
+                    Ventana de referencia para calibración JEV
+                  </label>
+                  <select
+                    id="windowSelectInput"
+                    value={selectedWindow ?? 0}
+                    onChange={(e) => setSelectedWindow(Number(e.target.value))}
+                  >
+                    {evaluatedRule.windows.map((w) => (
+                      <option key={w.window} value={w.window}>
+                        Ventana {w.window + 1} (I: {formatPct(w.broken)} · C: {formatPct(w.followed)}
+                        {w.p_trigger != null ? ` · Activador: ${formatPct(w.p_trigger)}` : ""})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              <p className="rule-meta-line" style={{ marginTop: 8 }}>
+                Al marcar <strong>Cumplida</strong>, <strong>Incumplida</strong> o{" "}
+                <strong>No aplica</strong> en evaluaciones reales, se guarda automáticamente la
+                probabilidad cruda de JEV, la clave de pregunta y la ventana para entrenar la
+                calibración (se activa a partir de ~30 correcciones por tipo de regla).
+              </p>
             </div>
           )}
 
@@ -425,7 +459,11 @@ export const EvaluationRuleModal: React.FC<EvaluationRuleModalProps> = ({
                       <div className="jev-q-head">
                         <span className="rule-id-badge">{q.key}</span>
                         <span className="block-hint">
-                          Tipo: {q.type === "noul" ? "Sí / No (Noul)" : "3 opciones (Choice)"}
+                          {q.is_trigger
+                            ? "Etapa 1 · Activador condicional «si X ocurre» (Noul)"
+                            : q.type === "noul"
+                            ? "Sí / No (Noul)"
+                            : "Etapa 2 · Evaluación de respuesta (Choice)"}
                         </span>
                       </div>
 

@@ -19,9 +19,24 @@ from typing import Any, Sequence
 
 from calibration import Calibrator
 from jev_client import DEFAULT_MODEL, FakeJev, JevClient, body_bytes
-from rules import GATES, Scope, Section, calibration_group, question_registry, questions_for_scopes
+from rules import (
+    GATES,
+    Kind,
+    Question,
+    Scope,
+    Section,
+    calibration_group,
+    question_registry,
+    questions_for_scopes,
+)
 from rules_a1_a2 import SECTIONS
-from scoring import evaluate_instruction, section_summary
+from scoring import (
+    TRIGGER_THRESHOLD,
+    estimate_duration_hours,
+    evaluate_instruction,
+    section_summary,
+    trigger_probability,
+)
 from transcript import Window, load_transcript, make_windows
 
 STATE_DESCRIPTION = (
@@ -47,28 +62,81 @@ def build_state(window: Window, n_windows: int) -> dict:
     return {"descripcion": STATE_DESCRIPTION, "posicion": pos, "transcripcion": window.text}
 
 
-def plan_batches(windows: Sequence[Window], sections: Sequence[Section], model: str,
-                 max_request_bytes: int) -> list[Batch]:
-    """Questions for each window, packed so no request body exceeds max_request_bytes.
+def _pack_window_questions(
+    window: Window,
+    n_windows: int,
+    questions: Sequence[Question],
+    model: str,
+    max_request_bytes: int,
+) -> list[Batch]:
+    batches: list[Batch] = []
+    state = build_state(window, n_windows)
+    current: dict = {}
+    for q in questions:
+        trial = {**current, q.key: q.payload()}
+        if current and body_bytes({"model": model, "state": state, "questions": trial}) > max_request_bytes:
+            batches.append(Batch(window.index, state, current))
+            trial = {q.key: q.payload()}
+        if body_bytes({"model": model, "state": state, "questions": trial}) > max_request_bytes:
+            raise ValueError(
+                f"window {window.index}: state plus question {q.key} exceeds {max_request_bytes} "
+                f"bytes; lower --window-bytes"
+            )
+        current = trial
+    if current:
+        batches.append(Batch(window.index, state, current))
+    return batches
+
+
+def plan_batches(
+    windows: Sequence[Window],
+    sections: Sequence[Section],
+    model: str,
+    max_request_bytes: int,
+    *,
+    stage1_only: bool = True,
+) -> list[Batch]:
+    """Pack Stage-1 questions for each window so no request body exceeds max_request_bytes.
 
     Keeping bodies under ~32,000 bytes keeps Jev in its default mode: OpenRouter switches to the
     slower, less accurate long-context mode above about that size.
     """
-    batches = []
+    batches: list[Batch] = []
     for w in windows:
-        state = build_state(w, len(windows))
-        current: dict = {}
-        for q in questions_for_scopes(sections, w.scopes):
-            trial = {**current, q.key: q.payload()}
-            if current and body_bytes({"model": model, "state": state, "questions": trial}) > max_request_bytes:
-                batches.append(Batch(w.index, state, current))
-                trial = {q.key: q.payload()}
-            if body_bytes({"model": model, "state": state, "questions": trial}) > max_request_bytes:
-                raise ValueError(f"window {w.index}: state plus question {q.key} exceeds {max_request_bytes} "
-                                 f"bytes; lower --window-bytes")
-            current = trial
-        if current:
-            batches.append(Batch(w.index, state, current))
+        qs = questions_for_scopes(sections, w.scopes, stage1_only=stage1_only)
+        batches.extend(_pack_window_questions(w, len(windows), qs, model, max_request_bytes))
+    return batches
+
+
+def plan_stage2_batches(
+    windows: Sequence[Window],
+    sections: Sequence[Section],
+    stage1_answers: dict[int, dict[str, dict]],
+    calibrator: Calibrator,
+    model: str,
+    max_request_bytes: int,
+    *,
+    trigger_threshold: float = TRIGGER_THRESHOLD,
+) -> list[Batch]:
+    """Pack Stage-2 response questions ONLY for (window, conditional rule) pairs whose trigger fired."""
+    batches: list[Batch] = []
+    for w in windows:
+        w_ans = stage1_answers.get(w.index, {})
+        to_ask: dict[str, Question] = {}
+        for sec in sections:
+            for ins in sec.instructions:
+                if ins.kind is not Kind.CONDITIONAL or ins.trigger is None:
+                    continue
+                if ins.scope not in w.scopes:
+                    continue
+                p_t = trigger_probability(ins, w_ans, calibrator)
+                if p_t is not None and p_t >= trigger_threshold:
+                    for q in ins.questions:
+                        to_ask.setdefault(q.key, q)
+        if to_ask:
+            batches.extend(
+                _pack_window_questions(w, len(windows), list(to_ask.values()), model, max_request_bytes)
+            )
     return batches
 
 
@@ -84,21 +152,61 @@ def _average(answers: Sequence[dict]) -> dict:
     return {"type": "choice", "probabilities": probs, "choice": max(probs, key=probs.get)}
 
 
-def run_audit(turns, client, sections: Sequence[Section] = SECTIONS, *, window_bytes: int = 12_000,
-              overlap_turns: int = 2, max_request_bytes: int = 30_000, first_contact: bool = True,
-              calibrator: Calibrator | None = None, repeats: int = 1, workers: int = 4) -> dict:
-    calibrator = calibrator or Calibrator()
-    windows = make_windows(turns, window_bytes, overlap_turns, first_contact)
-    batches = plan_batches(windows, sections, getattr(client, "model", DEFAULT_MODEL), max_request_bytes)
+def _run_batches(
+    batches: Sequence[Batch],
+    client: Any,
+    repeats: int,
+    workers: int,
+    collected: dict[int, dict[str, list]],
+) -> None:
+    if not batches:
+        return
     jobs = [(b, r) for b in batches for r in range(repeats)]
     with ThreadPoolExecutor(max_workers=max(1, workers)) as pool:
         responses = list(pool.map(lambda job: client.decide(job[0].state, job[0].questions, job[1]), jobs))
-
-    collected: dict[int, dict[str, list]] = {}
     for (batch, _), resp in zip(jobs, responses):
         for key in batch.questions:
             collected.setdefault(batch.window, {}).setdefault(key, []).append(resp["answers"][key])
+
+
+def run_audit(
+    turns,
+    client,
+    sections: Sequence[Section] = SECTIONS,
+    *,
+    window_bytes: int = 12_000,
+    overlap_turns: int = 2,
+    max_request_bytes: int = 30_000,
+    first_contact: bool = True,
+    calibrator: Calibrator | None = None,
+    repeats: int = 1,
+    workers: int = 4,
+    trigger_threshold: float = TRIGGER_THRESHOLD,
+    duration_seconds: float | None = None,
+) -> dict:
+    calibrator = calibrator or Calibrator()
+    model_name = getattr(client, "model", DEFAULT_MODEL)
+    windows = make_windows(turns, window_bytes, overlap_turns, first_contact)
+
+    # Stage 1: gates, obligations, prohibitions, evidence, and conditional trigger checks
+    stage1_batches = plan_batches(windows, sections, model_name, max_request_bytes, stage1_only=True)
+    collected: dict[int, dict[str, list]] = {}
+    _run_batches(stage1_batches, client, repeats, workers, collected)
     answers = {w: {k: _average(v) for k, v in qs.items()} for w, qs in collected.items()}
+
+    # Stage 2: judge conditional responses ONLY on windows where Stage-1 trigger fired
+    stage2_batches = plan_stage2_batches(
+        windows,
+        sections,
+        answers,
+        calibrator,
+        model_name,
+        max_request_bytes,
+        trigger_threshold=trigger_threshold,
+    )
+    if stage2_batches:
+        _run_batches(stage2_batches, client, repeats, workers, collected)
+        answers = {w: {k: _average(v) for k, v in qs.items()} for w, qs in collected.items()}
 
     scopes = {w.index: w.scopes for w in windows}
     gates: dict[Scope, float | None] = {}
@@ -108,19 +216,49 @@ def run_audit(turns, client, sections: Sequence[Section] = SECTIONS, *, window_b
         gates[scope] = calibrator.noul(a["noul"], "gate") if a and a.get("type") == "noul" else None
 
     times = {w.index: [w.start, w.end] for w in windows}
+    total_bytes = sum(w.n_bytes for w in windows)
+    dur_hours = estimate_duration_hours(times, duration_seconds=duration_seconds, total_bytes=total_bytes)
+
     instructions, sections_out = [], {}
     for sec in sections:
-        results = [evaluate_instruction(i, answers, scopes, gates, calibrator) for i in sec.instructions]
-        sections_out[sec.id] = section_summary(results, sec.title, times)
-        instructions += [r.to_dict(times) for r in results]
+        results = [
+            evaluate_instruction(
+                i,
+                answers,
+                scopes,
+                gates,
+                calibrator,
+                trigger_threshold=trigger_threshold,
+            )
+            for i in sec.instructions
+        ]
+        sections_out[sec.id] = section_summary(results, sec.title, times, duration_hours=dur_hours)
+        instructions += [r.to_dict(times, duration_hours=dur_hours) for r in results]
 
     return {
         "model": getattr(client, "model", None),
-        "settings": {"window_bytes": window_bytes, "overlap_turns": overlap_turns, "repeats": repeats,
-                     "max_request_bytes": max_request_bytes, "first_contact": first_contact,
-                     "calibrated": calibrator.to_dict()},
-        "windows": [{"window": w.index, "turns": [w.first_turn, w.last_turn], "bytes": w.n_bytes,
-                     "time": times[w.index], "scopes": sorted(s.value for s in w.scopes)} for w in windows],
+        "settings": {
+            "window_bytes": window_bytes,
+            "overlap_turns": overlap_turns,
+            "repeats": repeats,
+            "max_request_bytes": max_request_bytes,
+            "first_contact": first_contact,
+            "trigger_threshold": trigger_threshold,
+            "duration_hours": round(dur_hours, 4),
+            "stage1_requests": len(stage1_batches),
+            "stage2_requests": len(stage2_batches),
+            "calibrated": calibrator.to_dict(),
+        },
+        "windows": [
+            {
+                "window": w.index,
+                "turns": [w.first_turn, w.last_turn],
+                "bytes": w.n_bytes,
+                "time": times[w.index],
+                "scopes": sorted(s.value for s in w.scopes),
+            }
+            for w in windows
+        ],
         "gates": {s.value: g for s, g in gates.items()},
         "sections": sections_out,
         "instructions": instructions,
@@ -163,11 +301,9 @@ def print_summary(report: dict, name: str) -> None:
           f"({u['cache_hits']} cached) | {u['input_tokens']:,} input tokens | ${u['cost_usd']:.4f}")
     print(f"gates: opening={_fmt(report['gates'].get('opening'))} closing={_fmt(report['gates'].get('closing'))}")
     for sid, s in report["sections"].items():
-        lo, hi = s["p_all_followed_bounds"]
         print(f"\n{sid} {s['title']} ({s['n_instructions']} instructions)")
         print(f"  compliance rate {_fmt(s['compliance_rate'])} (weighted {_fmt(s['compliance_rate_weighted'])})"
-              f" | P(rate >= 90%) {_fmt(s['p_rate_at_least_90'])}"
-              f" | P(all followed) {_fmt(s['p_all_followed'])} [bounds {_fmt(lo)}-{_fmt(hi)}]"
+              f" | conduct flagged/hr {s.get('conduct_flagged_per_hour', 0.0):.2f} ({s.get('conduct_flagged_windows', 0)} win)"
               f" | expected broken {s['expected_broken']:.1f} | coverage {_fmt(s['coverage'])}")
         for r in s["top_risks"]:
             print(f"  risk {r['id']}  p_broken {r['p_broken']:.2f}  window {r['worst_window']} {r['time']}  "

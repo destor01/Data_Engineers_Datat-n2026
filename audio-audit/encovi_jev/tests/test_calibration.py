@@ -6,7 +6,7 @@ import random
 
 import pytest
 
-from calibration import Calibrator, _logit, _sigmoid, fit_from_csv, fit_platt, fit_temperature
+from calibration import Calibrator, _logit, _sigmoid, fit_from_csv, fit_from_records, fit_platt, fit_temperature
 
 
 def test_identity_without_parameters():
@@ -59,3 +59,16 @@ def test_fit_from_csv_round_trip(tmp_path):
     assert "obligation" not in cal.noul_params              # no labels -> stays identity
     cal.save(tmp_path / "c.json")
     assert Calibrator.load(tmp_path / "c.json").to_dict() == cal.to_dict()
+
+
+def test_fit_from_records_supports_in_memory_supervisor_edits():
+    rng = random.Random(11)
+    records = []
+    for _ in range(40):
+        p = rng.uniform(0.05, 0.95)
+        y = int(rng.random() < _sigmoid(0.5 * _logit(p) - 1.2))
+        records.append({"group": "prohibition", "question_type": "noul", "raw": p, "label": "1" if y else "0"})
+    cal, report = fit_from_records(records, min_labels=30)
+    assert cal.is_fitted
+    assert report["noul/prohibition"]["fitted"] is True
+    assert cal.noul(0.2, "prohibition") < 0.2

@@ -664,11 +664,17 @@ def run_local_transcription(
             except Exception as exc:
                 _free_gpu()
                 msg = str(exc)
-                if any(k in msg.lower() for k in ("401", "403", "gated", "unauthorized", "token", "access")):
+                # huggingface_hub wraps a 401/403 in a misleading "check your connection" error; inspect the whole chain.
+                chain, c = [], exc
+                while c is not None and len(chain) < 10:
+                    chain.append(str(c).lower())
+                    c = c.__cause__ or c.__context__
+                if any(k in m for m in chain for k in ("401", "403", "gated", "unauthorized", "token", "access")):
                     raise RuntimeError(
                         "Hugging Face rechazó el acceso al modelo de hablantes (Pyannote).\n"
                         "Verifica que:\n"
-                        "1) Tu token sea válido (permiso Read).\n"
+                        "1) Tu token sea válido (permiso Read). Si es un token 'fine-grained', activa\n"
+                        "   'Read access to contents of all public gated repos you can access'.\n"
                         "2) Hayas aceptado las condiciones de uso en:\n"
                         "   • https://huggingface.co/pyannote/speaker-diarization-community-1"
                     ) from exc

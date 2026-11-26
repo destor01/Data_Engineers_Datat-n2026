@@ -26,11 +26,14 @@ from app.cloud_stt import (
     upload_local_file_to_assemblyai,
 )
 from app.jev_auditor import (
+    CALIBRATION_MIN_LABELS,
     DEFAULT_MODEL as JEV_DEFAULT_MODEL,
     EXAMPLE_TRANSCRIPT_PATH,
     INTERVIEWER,
     apply_instruction_override,
     evaluate_transcript_with_jev,
+    extract_calibration_records_for_edit,
+    fit_calibration_from_edits,
     is_jev_available,
     load_example_transcript,
     normalize_speaker,
@@ -254,8 +257,14 @@ class EvaluationRuleEditPayload(BaseModel):
     override_status: str = "keep"  # followed | broken | unknown | custom | keep | reset
     custom_probs: dict[str, float] | None = None
     auditor_comment: ShortText | None = None
+    window_index: int | None = None
     update_future_rule: bool = False
     rule_override: RuleDefinitionUpdatePayload | None = None
+
+
+class CalibrationFitPayload(BaseModel):
+    min_labels: int = Field(default=CALIBRATION_MIN_LABELS, ge=2, le=500)
+    include_mock: bool = False
 
 
 # =====================================================================
@@ -484,6 +493,40 @@ def _refresh_cloud_job_if_needed(job: dict[str, Any]) -> dict[str, Any]:
         return job
 
 
+def _active_jev_model() -> str:
+    return (os.environ.get("JEV_MODEL") or JEV_DEFAULT_MODEL).strip()
+
+
+def _refit_and_save_calibration(
+    model_version: str | None = None,
+    *,
+    min_labels: int = CALIBRATION_MIN_LABELS,
+    include_mock: bool = False,
+) -> dict[str, Any]:
+    target_model = (model_version or _active_jev_model()).strip()
+    edits = store.list_evaluation_edits(model_version=target_model)
+    fitted = fit_calibration_from_edits(
+        edits,
+        model_version=target_model,
+        min_labels=min_labels,
+        include_mock=include_mock,
+    )
+    return store.save_calibration(target_model, fitted)
+
+
+def _get_calibration_status(model_version: str | None = None) -> dict[str, Any]:
+    target_model = (model_version or _active_jev_model()).strip()
+    saved = store.get_calibration(target_model)
+    if saved:
+        return saved
+    edits = store.list_evaluation_edits(model_version=target_model)
+    return fit_calibration_from_edits(
+        edits,
+        model_version=target_model,
+        min_labels=CALIBRATION_MIN_LABELS,
+    )
+
+
 # =====================================================================
 # Routes: Status & Configuration
 # =====================================================================
@@ -494,6 +537,8 @@ def system_status() -> dict[str, Any]:
     overrides = store.get_rule_overrides()
     catalog = serialize_rules_catalog(overrides)
     customized_count = sum(1 for r in catalog if r.get("is_customized"))
+    jev_model = _active_jev_model()
+    cal_state = _get_calibration_status(jev_model)
 
     assemblyai_ok = bool(_get_assemblyai_key())
     deepgram_ok = bool(_get_deepgram_key())
@@ -518,10 +563,21 @@ def system_status() -> dict[str, Any]:
         "deepgram_configured": deepgram_ok,
         "recommended_stt_provider": recommended_provider,
         "jev_available": is_jev_available(),
-        "jev_model": (os.environ.get("JEV_MODEL") or JEV_DEFAULT_MODEL).strip(),
+        "jev_model": jev_model,
         "example_available": EXAMPLE_TRANSCRIPT_PATH.exists(),
         "default_model": os.environ.get("WHISPER_MODEL", "large-v3-turbo"),
         "customized_rules_count": customized_count,
+        "calibration": {
+            "model_version": jev_model,
+            "is_calibrated": bool(cal_state.get("is_calibrated")),
+            "total_labels": int(cal_state.get("total_labels") or 0),
+            "min_labels": int(cal_state.get("min_labels") or CALIBRATION_MIN_LABELS),
+            "fitted_groups": sorted(
+                k for k, v in (cal_state.get("groups") or {}).items() if isinstance(v, dict) and v.get("fitted")
+            ),
+            "groups": cal_state.get("groups") or {},
+            "updated_at": cal_state.get("updated_at"),
+        },
     }
 
 
@@ -1175,8 +1231,9 @@ def run_jev_evaluation_endpoint(job_id: str, payload: EvaluatePayload) -> dict[s
 
     try:
         api_key = _get_openrouter_key()
-        jev_model = (os.environ.get("JEV_MODEL") or JEV_DEFAULT_MODEL).strip()
+        jev_model = _active_jev_model()
         rule_overrides = store.get_rule_overrides()
+        cal_data = _get_calibration_status(jev_model)
         report = evaluate_transcript_with_jev(
             turns,
             speaker_map=speaker_map,
@@ -1185,6 +1242,8 @@ def run_jev_evaluation_endpoint(job_id: str, payload: EvaluatePayload) -> dict[s
             api_key=api_key if not payload.mock else None,
             model=jev_model,
             rule_overrides=rule_overrides,
+            calibration_data=cal_data,
+            duration_seconds=job.get("duration_seconds"),
         )
         updated = store.update_job(
             job_id,
@@ -1203,6 +1262,21 @@ def run_jev_evaluation_endpoint(job_id: str, payload: EvaluatePayload) -> dict[s
             eval_error=str(exc),
         )
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.get("/api/calibration")
+def get_calibration_endpoint() -> dict[str, Any]:
+    return _get_calibration_status(_active_jev_model())
+
+
+@app.post("/api/calibration/fit")
+def fit_calibration_endpoint(payload: CalibrationFitPayload | None = None) -> dict[str, Any]:
+    cfg = payload or CalibrationFitPayload()
+    return _refit_and_save_calibration(
+        _active_jev_model(),
+        min_labels=cfg.min_labels,
+        include_mock=cfg.include_mock,
+    )
 
 
 @app.get("/api/jobs/{job_id}/evaluation/download")
@@ -1315,6 +1389,13 @@ def edit_job_evaluation_rule(
         all_rules = serialize_rules_catalog(store.get_rule_overrides())
         updated_rule_meta = next((r for r in all_rules if r["id"] == rule_id), None)
 
+    cal_records = extract_calibration_records_for_edit(
+        evaluation,
+        rule_id=rule_id,
+        override_status=payload.override_status,
+        window_index=payload.window_index,
+    )
+
     try:
         new_eval, prev_outcome, new_outcome = apply_instruction_override(
             evaluation,
@@ -1322,6 +1403,7 @@ def edit_job_evaluation_rule(
             override_status=payload.override_status,
             custom_probs=payload.custom_probs,
             auditor_comment=payload.auditor_comment,
+            window_index=payload.window_index,
             new_weight=updated_rule_meta["weight"] if updated_rule_meta else None,
             new_text=updated_rule_meta["text"] if updated_rule_meta else None,
             is_rule_customized=updated_rule_meta["is_customized"] if updated_rule_meta else None,
@@ -1331,17 +1413,43 @@ def edit_job_evaluation_rule(
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     updated_job = store.update_job(job_id, evaluation=new_eval)
-    store.log_evaluation_edit(
-        {
-            "job_id": job_id,
-            "rule_id": rule_id,
-            "previous_outcome": prev_outcome,
-            "override_status": payload.override_status,
-            "new_outcome": new_outcome,
-            "auditor_comment": payload.auditor_comment,
-            "propagate_to_future": payload.update_future_rule,
-        }
-    )
+
+    # Save each edit with JEV's raw probability, question_key, and window_index for calibration
+    if cal_records:
+        for cal_rec in cal_records:
+            store.log_evaluation_edit(
+                {
+                    "job_id": job_id,
+                    "rule_id": rule_id,
+                    "previous_outcome": prev_outcome,
+                    "override_status": payload.override_status,
+                    "new_outcome": new_outcome,
+                    "auditor_comment": payload.auditor_comment,
+                    "propagate_to_future": payload.update_future_rule,
+                    **cal_rec,
+                }
+            )
+    else:
+        store.log_evaluation_edit(
+            {
+                "job_id": job_id,
+                "rule_id": rule_id,
+                "previous_outcome": prev_outcome,
+                "override_status": payload.override_status,
+                "new_outcome": new_outcome,
+                "auditor_comment": payload.auditor_comment,
+                "propagate_to_future": payload.update_future_rule,
+                "window_index": payload.window_index,
+                "model_version": str(evaluation.get("model") or _active_jev_model()),
+                "is_mock": bool(evaluation.get("mock", False)),
+            }
+        )
+
+    eval_model = str(evaluation.get("model") or _active_jev_model())
+    if cal_records and not evaluation.get("mock"):
+        cal_state = _refit_and_save_calibration(eval_model)
+    else:
+        cal_state = _get_calibration_status(_active_jev_model())
 
     overrides = store.get_rule_overrides()
     catalog = serialize_rules_catalog(overrides)
@@ -1349,6 +1457,7 @@ def edit_job_evaluation_rule(
         "job": _serialize_job(updated_job or job),
         "rule": updated_rule_meta or next((r for r in catalog if r["id"] == rule_id), None),
         "customized_rules_count": sum(1 for r in catalog if r.get("is_customized")),
+        "calibration": cal_state,
     }
 
 

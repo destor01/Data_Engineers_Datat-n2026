@@ -49,7 +49,8 @@ CREATE TABLE IF NOT EXISTS public.audio_audit_rule_overrides (
     updated_at              TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
--- 4. Bitácora de ediciones humanas por entrevista (trazabilidad y calibración futura)
+-- 4. Bitácora de ediciones humanas por entrevista (guarda probabilidad cruda de JEV,
+--    question_key y window_index para ajustar calibración Platt / temperatura)
 CREATE TABLE IF NOT EXISTS public.audio_audit_evaluation_edits (
     id                      BIGSERIAL PRIMARY KEY,
     job_id                  TEXT NOT NULL REFERENCES public.audio_audit_jobs(id) ON DELETE CASCADE,
@@ -59,13 +60,49 @@ CREATE TABLE IF NOT EXISTS public.audio_audit_evaluation_edits (
     new_outcome             JSONB,
     auditor_comment         TEXT,
     propagate_to_future     BOOLEAN NOT NULL DEFAULT FALSE,
+    window_index            INT,
+    question_key            TEXT,
+    question_type           TEXT,
+    calibration_group       TEXT,
+    raw_probability         DOUBLE PRECISION,
+    raw_probabilities       JSONB,
+    gold_label              TEXT,
+    model_version           TEXT,
+    is_mock                 BOOLEAN NOT NULL DEFAULT FALSE,
     created_at              TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- Migración idempotente si la tabla ya existía sin columnas de calibración
+ALTER TABLE public.audio_audit_evaluation_edits ADD COLUMN IF NOT EXISTS window_index INT;
+ALTER TABLE public.audio_audit_evaluation_edits ADD COLUMN IF NOT EXISTS question_key TEXT;
+ALTER TABLE public.audio_audit_evaluation_edits ADD COLUMN IF NOT EXISTS question_type TEXT;
+ALTER TABLE public.audio_audit_evaluation_edits ADD COLUMN IF NOT EXISTS calibration_group TEXT;
+ALTER TABLE public.audio_audit_evaluation_edits ADD COLUMN IF NOT EXISTS raw_probability DOUBLE PRECISION;
+ALTER TABLE public.audio_audit_evaluation_edits ADD COLUMN IF NOT EXISTS raw_probabilities JSONB;
+ALTER TABLE public.audio_audit_evaluation_edits ADD COLUMN IF NOT EXISTS gold_label TEXT;
+ALTER TABLE public.audio_audit_evaluation_edits ADD COLUMN IF NOT EXISTS model_version TEXT;
+ALTER TABLE public.audio_audit_evaluation_edits ADD COLUMN IF NOT EXISTS is_mock BOOLEAN NOT NULL DEFAULT FALSE;
+
 CREATE INDEX IF NOT EXISTS ix_audio_audit_eval_edits_job
     ON public.audio_audit_evaluation_edits (job_id, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS ix_audio_audit_eval_edits_calibration
+    ON public.audio_audit_evaluation_edits (model_version, calibration_group, created_at ASC)
+    WHERE is_mock = FALSE AND question_key IS NOT NULL;
+
+-- 5. Parámetros de calibración ajustados (Platt para noul, temperatura para choice)
+CREATE TABLE IF NOT EXISTS public.audio_audit_calibration (
+    model_version           TEXT PRIMARY KEY,
+    min_labels              INT NOT NULL DEFAULT 30,
+    total_labels            INT NOT NULL DEFAULT 0,
+    is_calibrated           BOOLEAN NOT NULL DEFAULT FALSE,
+    calibrator              JSONB NOT NULL DEFAULT '{"noul_platt": {}, "choice_temperature": {}}'::jsonb,
+    groups                  JSONB NOT NULL DEFAULT '{}'::jsonb,
+    updated_at              TIMESTAMPTZ NOT NULL DEFAULT now()
+);
 
 -- Activar RLS (el backend FastAPI se conecta con SUPABASE_SERVICE_ROLE_KEY)
 ALTER TABLE public.audio_audit_jobs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.audio_audit_rule_overrides ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.audio_audit_evaluation_edits ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.audio_audit_calibration ENABLE ROW LEVEL SECURITY;

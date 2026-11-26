@@ -1,5 +1,6 @@
 import type {
   AuditJob,
+  CalibrationStatus,
   EvaluationRuleEditRequest,
   JobSummary,
   RuleCatalogItem,
@@ -226,6 +227,7 @@ export async function editJobEvaluationRule(
   job: AuditJob;
   rule: RuleCatalogItem | null;
   customized_rules_count: number;
+  calibration?: CalibrationStatus;
 }> {
   const res = await fetch(
     `/api/jobs/${encodeURIComponent(jobId)}/evaluation/rules/${encodeURIComponent(ruleId)}`,
@@ -236,4 +238,18 @@ export async function editJobEvaluationRule(
     }
   );
   return parseJsonOrThrow(res, "No se pudo guardar la edición de la evaluación");
+}
+
+export async function getCalibrationStatus(): Promise<CalibrationStatus> {
+  const res = await fetch("/api/calibration");
+  return parseJsonOrThrow<CalibrationStatus>(res, "No se pudo consultar la calibración JEV");
+}
+
+export async function fitCalibrationNow(): Promise<CalibrationStatus> {
+  const res = await fetch("/api/calibration/fit", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({}),
+  });
+  return parseJsonOrThrow<CalibrationStatus>(res, "No se pudo recalibrar el modelo JEV");
 }

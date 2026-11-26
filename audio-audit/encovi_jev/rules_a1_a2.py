@@ -4,6 +4,9 @@ Source of every rule: Manual del Encuestador ENCOVI 2023 (INE Guatemala); `pages
 printed pages. Weights are a proposal (3 = protects the informant or the validity of the data,
 2 = explicit procedure, 1 = example or courtesy detail); agree on them before looking at results.
 Speaker names in the questions match the labels in the transcript state: ENCUESTADOR, INFORMANTE.
+
+Conditional rules ("if X happens, do Y") carry a Stage-1 `trigger` Noul question ("did X happen
+in this window?") so the Stage-2 response question is only judged on windows where X occurred.
 """
 from __future__ import annotations
 
@@ -13,9 +16,9 @@ OBL, PRO, CON, EVI = Kind.OBLIGATION, Kind.PROHIBITION, Kind.CONDITIONAL, Kind.E
 OPEN, CLOSE, ALL = Scope.OPENING, Scope.CLOSING, Scope.ALL
 
 
-def _ins(section, id_, text, pages, kind, scope, questions, weight=1, verif="alta", note=""):
+def _ins(section, id_, text, pages, kind, scope, questions, weight=1, verif="alta", note="", trigger=None):
     qs = tuple(questions) if isinstance(questions, (list, tuple)) else (questions,)
-    return Instruction(id_, section, text, pages, kind, scope, qs, weight, verif, note)
+    return Instruction(id_, section, text, pages, kind, scope, qs, weight, verif, note, trigger=trigger)
 
 
 # Shared by A1-04 and A1-09 (asked once, used by both).
@@ -160,6 +163,14 @@ A1_RULES = [
         broken=("no_vuelve_a_presentar",
                 "Se incorpora una persona nueva como primer INFORMANTE y el ENCUESTADOR le empieza a preguntar sin "
                 "explicarle la encuesta ni pedirle su colaboración.")),
+        trigger=noul(
+            "T_A1_13_primer_informante",
+            "En este fragmento se incorpora una persona nueva como primer INFORMANTE, distinta de quien atendió la "
+            "presentación inicial.",
+            true="Llega o toma la palabra una persona diferente a quien abrió o recibió la presentación para responder "
+                 "como primer INFORMANTE.",
+            false="El INFORMANTE es la misma persona que recibió la presentación inicial; no entra un informante nuevo.",
+        ),
         weight=2),
 
     _ins("A1", "A1-14", "Pedir hablar con el jefe(a) del hogar o su esposa(o)/compañera(o); si no están, con una "
@@ -193,6 +204,13 @@ A1_RULES = [
                   "dueño de la vivienda) para que informe sobre los demás."),
         broken=("primero_otro_hogar",
                 "Hay varios hogares y el ENCUESTADOR empieza con un hogar que no es el principal.")),
+        trigger=noul(
+            "T_A1_16_varios_hogares",
+            "En este fragmento se menciona o aparece que en la misma vivienda viven varios hogares (grupos que "
+            "preparan comidas o gastos por separado).",
+            true="Se dice que en la vivienda viven dos o más hogares o familias con gastos/comidas separados.",
+            false="No se menciona que en la vivienda viva más de un hogar.",
+        ),
         weight=2),
 
     _ins("A1", "A1-17", "Si el informante pide ampliar la información: NO dar datos que desconozca; explicar que la "
@@ -206,6 +224,13 @@ A1_RULES = [
         broken=("da_datos_dudosos",
                 "El INFORMANTE pide más información y el ENCUESTADOR da datos dudosos o inventados (beneficios, "
                 "fechas, resultados) o no responde a lo que se le pregunta.")),
+        trigger=noul(
+            "T_A1_17_pide_ampliar",
+            "En este fragmento el INFORMANTE pide más información o preguntas adicionales sobre la encuesta "
+            "(qué es, quién la hace, cómo funciona, dónde se aplica o para qué sirve).",
+            true="El INFORMANTE pregunta o pide ampliar información sobre la encuesta.",
+            false="El INFORMANTE no solicita más información sobre la encuesta en este fragmento.",
+        ),
         weight=2),
 
     _ins("A1", "A1-18", "Dar el teléfono de la oficina departamental, la Dirección Técnica o las oficinas centrales "
@@ -220,6 +245,13 @@ A1_RULES = [
                   "oficina del INE para que llame y verifique."),
         broken=("no_da_telefono",
                 "El INFORMANTE pide más información o duda, y el ENCUESTADOR no le ofrece ningún teléfono del INE.")),
+        trigger=noul(
+            "T_A1_18_pide_verificar",
+            "En este fragmento el INFORMANTE pide más información sobre la encuesta o expresa dudas sobre si la "
+            "encuesta o el ENCUESTADOR son realmente del INE.",
+            true="El INFORMANTE pregunta cómo verificar la encuesta, duda de su autenticidad o pide ampliar información.",
+            false="El INFORMANTE no duda de que la encuesta sea real ni pide más información para verificar.",
+        ),
         weight=1, note="En el manual va en el mismo párrafo que A1-17 (si el informante pide ampliar la "
                        "información); por eso se modela como condicional."),
 
@@ -234,6 +266,13 @@ A1_RULES = [
                   "ejemplo."),
         broken=("no_lee_ejemplos",
                 "El INFORMANTE duda o se resiste y el ENCUESTADOR no le lee ninguna pregunta de ejemplo.")),
+        trigger=noul(
+            "T_A1_19_renuencia",
+            "En este fragmento el INFORMANTE se muestra renuente, duda o pone excusas/resistencia para conceder "
+            "la entrevista.",
+            true="El INFORMANTE duda, dice estar ocupado o muestra resistencia para dar la entrevista.",
+            false="El INFORMANTE colabora y responde sin mostrar renuencia ni resistencia.",
+        ),
         weight=1),
 
     _ins("A1", "A1-20", "Si pregunta por qué o cómo fue seleccionado: explicar que la vivienda se eligió en la "
@@ -247,6 +286,13 @@ A1_RULES = [
         broken=("no_explica_muestreo",
                 "El INFORMANTE lo pregunta y el ENCUESTADOR no lo explica, dice que no sabe o da otra razón (por "
                 "ejemplo, que alguien lo recomendó).")),
+        trigger=noul(
+            "T_A1_20_pregunta_seleccion",
+            "En este fragmento el INFORMANTE pregunta por qué o cómo fue seleccionado su hogar o vivienda para la "
+            "encuesta.",
+            true="El INFORMANTE pregunta cosas como «¿por qué nosotros?», «¿cómo nos eligieron?» o «¿quién dio mi casa?».",
+            false="El INFORMANTE no pregunta por qué ni cómo fue seleccionado su hogar.",
+        ),
         weight=2),
 
     _ins("A1", "A1-21", "Si sugiere que su vecino informe mejor: aclarar amablemente que el encuestador está "
@@ -261,6 +307,13 @@ A1_RULES = [
         broken=("acepta_ir_con_vecino",
                 "El INFORMANTE lo sugiere y el ENCUESTADOR acepta ir con el vecino, o no le aclara que debe "
                 "entrevistar esta vivienda.")),
+        trigger=noul(
+            "T_A1_21_sugiere_vecino",
+            "En este fragmento el INFORMANTE sugiere que el ENCUESTADOR vaya con un vecino o entreviste otra "
+            "vivienda en lugar de la suya.",
+            true="El INFORMANTE propone que entrevisten al vecino o a otra casa.",
+            false="El INFORMANTE no sugiere entrevistar a un vecino ni a otra vivienda.",
+        ),
         weight=2),
 
     _ins("A1", "A1-22", "NO sustituir la vivienda asignada por otra", "p.22", PRO, ALL, noul(
@@ -281,6 +334,12 @@ A1_RULES = [
         broken=("acepta_el_rechazo",
                 "El INFORMANTE la rechaza y el ENCUESTADOR acepta el rechazo de inmediato, sin insistir ni proponer "
                 "otro momento.")),
+        trigger=noul(
+            "T_A1_23_rechazo",
+            "En este fragmento el INFORMANTE rechaza expresamente dar la entrevista o dice que no quiere participar.",
+            true="El INFORMANTE dice que no quiere dar la entrevista o rechaza participar.",
+            false="El INFORMANTE no rechaza la entrevista en este fragmento.",
+        ),
         weight=2, note="Insistir no es presionar: la presión se evalúa en A2-11."),
 
     _ins("A1", "A1-24", "Ante desconfianza sobre el uso de los datos (p. ej. “no será que esto lo quieren para la "
@@ -296,6 +355,13 @@ A1_RULES = [
         broken=("no_aclara_uso",
                 "El INFORMANTE desconfía y el ENCUESTADOR ignora la preocupación, cambia de tema o responde sin "
                 "aclarar la confidencialidad ni el uso estadístico.")),
+        trigger=noul(
+            "T_A1_24_desconfianza",
+            "En este fragmento el INFORMANTE expresa desconfianza o temor sobre el uso que se dará a sus datos "
+            "(impuestos, SAT, policía, gobierno, programas sociales o privacidad).",
+            true="El INFORMANTE menciona temor o duda sobre qué harán con su información (por ejemplo, la SAT o impuestos).",
+            false="El INFORMANTE no expresa desconfianza sobre el uso de sus datos en este fragmento.",
+        ),
         weight=3),
 ]
 
@@ -447,6 +513,13 @@ A2_RULES = [
         broken=("comenta_la_interrupcion",
                 "Hay una interrupción y el ENCUESTADOR muestra sorpresa, se queja, regaña o le dice al INFORMANTE "
                 "qué hacer.")),
+        trigger=noul(
+            "T_A2_15_interrupcion",
+            "En este fragmento la entrevista se interrumpe (interviene un niño u otra persona, llaman a la puerta/"
+            "teléfono, o el INFORMANTE se retira momentáneamente a otra actividad).",
+            true="Ocurre una interrupción externa o el INFORMANTE pide un momento para atender otra actividad.",
+            false="La entrevista transcurre sin interrupciones en este fragmento.",
+        ),
         weight=1),
 
     _ins("A2", "A2-16", "Evitar entrevistar en presencia de personas ajenas al hogar", "p.42", CON, ALL, tri_choice(
@@ -459,6 +532,13 @@ A2_RULES = [
         broken=("sigue_con_ajenos",
                 "Hay personas ajenas (vecinos, visitas) que escuchan o intervienen y el ENCUESTADOR sigue "
                 "preguntando sin buscar privacidad.")),
+        trigger=noul(
+            "T_A2_16_personas_ajenas",
+            "En este fragmento hay personas ajenas al hogar (vecinos, visitas, conocidos que no viven allí) "
+            "presentes escuchando o interviniendo durante la entrevista.",
+            true="Se nota que un vecino, visita o persona ajena al hogar está presente durante la entrevista.",
+            false="No se detecta presencia de personas ajenas al hogar en este fragmento.",
+        ),
         weight=1, verif="media"),
 
     _ins("A2", "A2-17", "NO llevar acompañantes ajenos al equipo de trabajo a la entrevista", "p.19", PRO, ALL, noul(
@@ -512,6 +592,12 @@ A2_RULES = [
         broken=("no_reconduce_o_corta",
                 "El INFORMANTE se desvía y el ENCUESTADOR lo deja seguir sin volver a la pregunta, o lo corta de forma "
                 "brusca.")),
+        trigger=noul(
+            "T_A2_22_desvio",
+            "En este fragmento el INFORMANTE se desvía claramente del tema de la pregunta que le hace el ENCUESTADOR.",
+            true="El INFORMANTE empieza a hablar extensamente de otro tema ajeno a la pregunta del cuestionario.",
+            false="El INFORMANTE responde sobre lo que se le pregunta sin desviarse del tema.",
+        ),
         weight=1),
 
     _ins("A2", "A2-23", "Si manifiesta cansancio o molestia: decirle que la entrevista no tomará mucho más, mantener "
@@ -525,6 +611,13 @@ A2_RULES = [
         broken=("ignora_o_suspende",
                 "El INFORMANTE expresa cansancio o molestia y el ENCUESTADOR lo ignora, discute con él o suspende "
                 "por largo tiempo sin acordar cómo seguir.")),
+        trigger=noul(
+            "T_A2_23_cansancio",
+            "En este fragmento el INFORMANTE expresa cansancio, fastidio o molestia por la duración o las preguntas "
+            "de la entrevista.",
+            true="El INFORMANTE dice estar cansado, pregunta si falta mucho o muestra molestia con la entrevista.",
+            false="El INFORMANTE no expresa cansancio ni molestia en este fragmento.",
+        ),
         weight=1),
 
     _ins("A2", "A2-24", "Si el informante decide suspender: preguntarle cortésmente cuándo podría atenderlo y acordar "
@@ -538,6 +631,12 @@ A2_RULES = [
         broken=("no_acuerda_cita",
                 "El INFORMANTE decide suspender y el ENCUESTADOR se va sin acordar una nueva cita, o insiste en "
                 "seguir.")),
+        trigger=noul(
+            "T_A2_24_suspension",
+            "En este fragmento el INFORMANTE pide suspender, cortar o dejar para después la entrevista en curso.",
+            true="El INFORMANTE dice que ya no puede seguir en este momento y pide suspender la entrevista.",
+            false="El INFORMANTE no pide suspender la entrevista en este fragmento.",
+        ),
         weight=2),
 
     _ins("A2", "A2-25", "Si no es oportuno entrevistar (visitas, enfermedad de un miembro, etc.): regresar en otro "
@@ -550,6 +649,13 @@ A2_RULES = [
                   "El momento es inoportuno y el ENCUESTADOR propone regresar en otro momento."),
         broken=("sigue_como_si_nada",
                 "El momento es inoportuno y el ENCUESTADOR sigue con la entrevista como si nada.")),
+        trigger=noul(
+            "T_A2_25_inoportuno",
+            "En este fragmento hay señales claras de que el momento no es oportuno para entrevistar (una urgencia, "
+            "enfermedad grave de alguien del hogar, visitas importantes o situación que impide atender).",
+            true="Se menciona o ocurre una enfermedad, urgencia, visita o evento que hace inoportuno entrevistar ahora.",
+            false="No hay señales de que el momento sea inoportuno para realizar la entrevista.",
+        ),
         weight=1),
 
     _ins("A2", "A2-26", "Al terminar: aprovechar la presencia de los informantes para corregir omisiones o "

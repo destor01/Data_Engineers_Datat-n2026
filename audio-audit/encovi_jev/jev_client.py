@@ -191,8 +191,15 @@ class FakeJev:
             rng = random.Random(hashlib.sha256(f"{key}|{seed_text}|{repeat_index}".encode("utf-8")).digest())
             if q["type"] == "noul":
                 x = rng.random()
-                good = self.kind_by_key[key] in ("obligation", "gate")
-                answers[key] = {"type": "noul", "noul": round(0.70 + 0.29 * x if good else 0.15 * x ** 3, 4)}
+                kind = self.kind_by_key.get(key, "prohibition")
+                if kind in ("obligation", "gate"):
+                    val = round(0.70 + 0.29 * x, 4)
+                elif kind == "trigger":
+                    # Conditional triggers fire occasionally (~10%) so Stage 2 is exercised in offline tests
+                    val = round(0.72 + 0.23 * rng.random(), 4) if x < 0.10 else round(0.12 * (x ** 2), 4)
+                else:
+                    val = round(0.15 * (x ** 3), 4)
+                answers[key] = {"type": "noul", "noul": val}
             else:
                 roles = self.roles_by_key[key]
                 p_na = 0.75 + 0.2 * rng.random()

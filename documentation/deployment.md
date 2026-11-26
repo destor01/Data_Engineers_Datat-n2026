@@ -96,6 +96,6 @@ Vite envía `/api/*` al puerto 8000. Si no defines las variables de Supabase, no
 - **Tiempo por validación:** Data Audit procesa cada base dentro de una petición de hasta 300 s (máximo del plan Hobby de Vercel). Una base que tarde más, por ejemplo con el codificador con IA sobre muchos registros, no termina.
 - **Transcripción:** con AssemblyAI el trabajo es asíncrono y no tiene ese límite; Deepgram responde dentro de la misma petición.
 - **Pausa de Supabase:** los proyectos gratuitos se pausan tras una semana sin actividad. Entra a la plataforma antes de una presentación.
-- **Evaluación JEV y editor de reglas:** existen en la API (`/api/jobs/{id}/evaluate`, `/api/rules`), pero la interfaz publicada solo transcribe; la pantalla propia de `audio-audit/` no se publica.
+- **Evaluación JEV, calibración y editor de reglas:** existen en la API (`/api/jobs/{id}/evaluate`, `/api/calibration`, `/api/rules`), pero la interfaz publicada solo transcribe; la pantalla propia de `audio-audit/` no se publica.
 - **Lectura de cuestionarios:** cada petición lee un bloque de páginas en menos de 300 s y la interfaz lanza varias a la vez. Un PDF de 72 páginas tarda varios minutos; si Anthropic limita las peticiones, la interfaz reintenta sola. La página debe quedar abierta mientras se lee (se puede continuar después).
 - **Roles:** cualquier cuenta creada en Supabase tiene acceso a todo. Data Audit registra a cada usuario que entra como `analista_ine` para su bitácora.

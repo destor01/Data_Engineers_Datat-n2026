@@ -923,9 +923,6 @@ function renderJevReport(report, elapsedSeconds) {
     const rate = sec.compliance_rate_weighted != null ? sec.compliance_rate_weighted : sec.compliance_rate;
     const rateCls = getRateColorClass(rate);
     const pctWidth = rate != null ? Math.round(rate * 100) : 0;
-    const bounds = Array.isArray(sec.p_all_followed_bounds)
-      ? `[${formatPct(sec.p_all_followed_bounds[0])} – ${formatPct(sec.p_all_followed_bounds[1])}]`
-      : "";
 
     const card = document.createElement("div");
     card.className = "section-card";
@@ -942,9 +939,7 @@ function renderJevReport(report, elapsedSeconds) {
       </div>
       <div class="section-metrics">
         <div class="metric-row"><span>Cumplimiento simple</span><strong>${formatPct(sec.compliance_rate)}</strong></div>
-        <div class="metric-row"><span>P(cumplimiento ≥ 90 %)</span><strong>${formatPct(sec.p_rate_at_least_90)}</strong></div>
-        <div class="metric-row"><span>P(todo cumplido)</span><strong>${formatPct(sec.p_all_followed)} ${bounds}</strong></div>
-        <div class="metric-row"><span>P(máx. 1 incumplimiento)</span><strong>${formatPct(sec.p_at_most_1_broken)}</strong></div>
+        <div class="metric-row"><span>Conducta: marcadas / hora</span><strong>${sec.conduct_flagged_per_hour != null ? `${sec.conduct_flagged_per_hour.toFixed(2)} / h (${sec.conduct_flagged_windows || 0} vent.)` : "0.00 / h"}</strong></div>
         <div class="metric-row"><span>Incumplimientos esperados</span><strong>${sec.expected_broken != null ? sec.expected_broken.toFixed(1) : "—"}</strong></div>
         <div class="metric-row"><span>Cobertura evaluable</span><strong>${formatPct(sec.coverage)}</strong></div>
       </div>

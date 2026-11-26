@@ -3,6 +3,8 @@ import {
   editJobEvaluationRule,
   evaluateJobWithJev,
   fetchRulesCatalog,
+  fitCalibrationNow,
+  getCalibrationStatus,
   getJob,
   getSystemStatus,
   listRecentJobs,
@@ -14,10 +16,12 @@ import {
   uploadAudioMultipartAndStart,
   uploadTranscriptFile,
 } from "./api";
+import { CalibrationModal } from "./components/CalibrationModal";
 import { EvaluationRuleModal } from "./components/EvaluationRuleModal";
 import { RulesCatalogModal } from "./components/RulesCatalogModal";
 import type {
   AuditJob,
+  CalibrationStatus,
   EvaluatedInstruction,
   EvaluationRuleEditRequest,
   JobSummary,
@@ -97,14 +101,18 @@ function classifyRule(ins: EvaluatedInstruction): string {
   const c = Number(ins.p_followed || 0);
   const v = Number(ins.p_broken || 0);
   const u = Number(ins.p_unknown || 0);
-  if (v >= 0.7) return "broken";
-  if (v >= 0.3) return "review";
+  const wf = Number(ins.windows_flagged || 0);
+  const wr = Number(ins.windows_review || 0);
+  if (v >= 0.7 || wf > 0) return "broken";
+  if (v >= 0.3 || wr > 0) return "review";
   if (u >= 0.7 && c < 0.3) return "unknown";
   return "followed";
 }
 
 export const App: React.FC = () => {
   const [status, setStatus] = useState<SystemStatus | null>(null);
+  const [calibrationStatus, setCalibrationStatus] = useState<CalibrationStatus | null>(null);
+  const [showCalibrationModal, setShowCalibrationModal] = useState<boolean>(false);
   const [recentJobs, setRecentJobs] = useState<JobSummary[]>([]);
   const [rulesCatalog, setRulesCatalog] = useState<RuleCatalogItem[]>([]);
 
@@ -164,12 +172,14 @@ export const App: React.FC = () => {
 
   const refreshMetadata = useCallback(async () => {
     try {
-      const [st, jobsList, rulesData] = await Promise.all([
+      const [st, jobsList, rulesData, calData] = await Promise.all([
         getSystemStatus(),
         listRecentJobs(20).catch(() => [] as JobSummary[]),
         fetchRulesCatalog().catch(() => ({ rules: [] as RuleCatalogItem[], customized_count: 0 })),
+        getCalibrationStatus().catch(() => null),
       ]);
       setStatus(st);
+      setCalibrationStatus(calData || st.calibration || null);
       setRecentJobs(jobsList);
       setRulesCatalog(rulesData.rules);
 
@@ -629,6 +639,19 @@ export const App: React.FC = () => {
           >
             51 Reglas JEV
             {status?.customized_rules_count ? ` (${status.customized_rules_count} editadas)` : ""}
+          </button>
+
+          <button
+            type="button"
+            className={`pill pill-btn ${calibrationStatus?.is_calibrated ? "pill-ok" : "pill-muted"}`}
+            onClick={() => setShowCalibrationModal(true)}
+            title="Ver progreso de calibración desde correcciones del supervisor"
+          >
+            {calibrationStatus?.is_calibrated
+              ? `Calibración: activa (${
+                  Object.values(calibrationStatus.groups || {}).filter((g) => g.fitted).length
+                } grupos)`
+              : `Calibración: ${calibrationStatus?.total_labels ?? 0} etiquetas`}
           </button>
         </div>
       </header>
@@ -1321,9 +1344,25 @@ export const App: React.FC = () => {
               </div>
 
               <div className="kpi-box">
-                <div className="kpi-label">Incumplimientos esperados</div>
-                <div className="kpi-value">{overall.expected_broken.toFixed(1)}</div>
-                <div className="kpi-sub">de {overall.n_instructions} instrucciones activas</div>
+                <div className="kpi-label">Conducta: marcadas / hora</div>
+                <div
+                  className={`kpi-value ${
+                    (overall.conduct_flagged_per_hour ?? 0) >= 2.5
+                      ? "rate-danger"
+                      : (overall.conduct_flagged_per_hour ?? 0) >= 0.5
+                      ? "rate-warn"
+                      : "rate-ok"
+                  }`}
+                >
+                  {(overall.conduct_flagged_per_hour ?? 0).toFixed(2)} / h
+                </div>
+                <div className="kpi-sub">
+                  {overall.conduct_flagged_windows ?? 0}{" "}
+                  {(overall.conduct_flagged_windows ?? 0) === 1
+                    ? "ventana marcada"
+                    : "ventanas marcadas"}{" "}
+                  (≥ 70 %)
+                </div>
               </div>
 
               <div className="kpi-box">
@@ -1339,13 +1378,15 @@ export const App: React.FC = () => {
               </div>
 
               <div className="kpi-box">
-                <div className="kpi-label">Compuertas / Ediciones</div>
+                <div className="kpi-label">Compuertas / Calibración</div>
                 <div className="kpi-value">
                   {evaluation.gates.opening != null ? formatPct(evaluation.gates.opening) : "Omit."}{" "}
                   / {evaluation.gates.closing != null ? formatPct(evaluation.gates.closing) : "n/a"}
                 </div>
                 <div className="kpi-sub">
-                  Reglas reescritas activas: {evaluation.customized_rules_applied ?? 0}
+                  {evaluation.calibration?.is_calibrated
+                    ? `Calibrado (${evaluation.calibration.fitted_groups.length} grupos)`
+                    : `Sin calibrar (${calibrationStatus?.total_labels ?? 0} etiquetas)`}
                 </div>
               </div>
             </div>
@@ -1379,20 +1420,21 @@ export const App: React.FC = () => {
                         <strong>{formatPct(sec.compliance_rate)}</strong>
                       </div>
                       <div className="metric-row">
-                        <span>P(cumplimiento ≥ 90 %)</span>
-                        <strong>{formatPct(sec.p_rate_at_least_90)}</strong>
-                      </div>
-                      <div className="metric-row">
-                        <span>P(todo cumplido)</span>
+                        <span>Conducta: marcadas / hora</span>
                         <strong>
-                          {formatPct(sec.p_all_followed)} [
-                          {formatPct(sec.p_all_followed_bounds?.[0])} –{" "}
-                          {formatPct(sec.p_all_followed_bounds?.[1])}]
+                          {(sec.conduct_flagged_per_hour ?? 0).toFixed(2)} / h (
+                          {sec.conduct_flagged_windows ?? 0} vent.)
                         </strong>
                       </div>
                       <div className="metric-row">
-                        <span>P(máx. 1 incumplimiento)</span>
-                        <strong>{formatPct(sec.p_at_most_1_broken)}</strong>
+                        <span>Incumplimientos esperados</span>
+                        <strong>
+                          {sec.expected_broken != null ? sec.expected_broken.toFixed(1) : "—"}
+                        </strong>
+                      </div>
+                      <div className="metric-row">
+                        <span>Cobertura evaluable</span>
+                        <strong>{formatPct(sec.coverage)}</strong>
                       </div>
                     </div>
                   </div>
@@ -1593,6 +1635,22 @@ export const App: React.FC = () => {
                                 <span className="p-bad">I: {formatPct(v)}</span>
                                 <span className="p-na">N/A: {formatPct(u)}</span>
                               </div>
+                              {ins.kind === "prohibition" && (ins.windows_flagged || 0) > 0 && (
+                                <div className="rule-meta-line">
+                                  <strong>{ins.windows_flagged}</strong>{" "}
+                                  {ins.windows_flagged === 1 ? "ventana marcada" : "ventanas marcadas"}
+                                  {ins.flagged_per_hour != null ? ` (${ins.flagged_per_hour.toFixed(2)} / h)` : ""}
+                                </div>
+                              )}
+                              {ins.kind === "conditional" && ins.triggered_windows != null && (
+                                <div className="rule-meta-line">
+                                  {ins.triggered_windows > 0
+                                    ? `Situación detectada en ${ins.triggered_windows} ${
+                                        ins.triggered_windows === 1 ? "ventana" : "ventanas"
+                                      }`
+                                    : "Sin activación en esta entrevista"}
+                                </div>
+                              )}
                             </td>
 
                             <td>
@@ -1649,6 +1707,18 @@ export const App: React.FC = () => {
         rules={rulesCatalog}
         onClose={() => setShowCatalogModal(false)}
         onSelectRuleToEdit={openRuleEditorGlobal}
+      />
+
+      {/* MODAL: CALIBRATION STATUS */}
+      <CalibrationModal
+        isOpen={showCalibrationModal}
+        calibration={calibrationStatus}
+        onClose={() => setShowCalibrationModal(false)}
+        onRefit={async () => {
+          const updated = await fitCalibrationNow();
+          setCalibrationStatus(updated);
+          await refreshMetadata();
+        }}
       />
     </div>
   );
