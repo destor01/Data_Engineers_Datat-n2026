@@ -1,0 +1,42 @@
+numero,cod_depto,departamento,municipio,cod_muni,fecha,amenaza,subtipo_amenaza,evento,personas_afectadas,personas_fallecidas
+1,05,guate,MIXCO,Mixcoo,2025-02-14 10:00,1,1,Lluvias,,0
+2,,Escuintla,MIXCO,Villa Nuevaa,2025-07-13 10:00,1,1,Lluvias,,0
+3,01,Escuintla,MIXCO,Escuintla Centro,2025-07-19 10:00,1,1,Lluvias,,0
+4,99,guate,MIXCO,Chinautlaa,2025-04-19 10:00,1,1,Lluvias,abc,0
+5,01,GUATEMALA,MIXCO,Mixcoo,2025-01-18 10:00,1,1,Lluvias,,0
+6,05,Escuintla,MIXCO,Mixcoo,2025-01-18 10:00,1,1,Lluvias,,0
+7,,guate,MIXCO,Villa Nuevaa,2025-04-15 10:00,1,1,Lluvias,-3,0
+8,,Escuintla,MIXCO,Escuintla Centro,2025-01-16 10:00,X,1,Lluvias,10,0
+9,05,guate,MIXCO,Chinautlaa,2025-05-11 10:00,X,1,Lluvias,abc,0
+10,,guate,MIXCO,Mixcoo,2025-04-14 10:00,2,1,Lluvias,,0
+11,,guate,MIXCO,Mixcoo,2025-01-17 10:00,1,1,Lluvias,,0
+12,,guate,MIXCO,Villa Nuevaa,2025-03-15 10:00,X,1,Lluvias,abc,0
+13,01,Escuintla,MIXCO,Escuintla Centro,2025-09-11 10:00,1,1,Lluvias,,0
+14,99,Escuintla,MIXCO,Chinautlaa,2025-01-17 10:00,1,1,Lluvias,abc,0
+15,,guate,MIXCO,Mixcoo,2025-03-12 10:00,X,1,Lluvias,-3,0
+16,01,GUATEMALA,MIXCO,Mixcoo,2025-09-18 10:00,1,1,Lluvias,,0
+17,99,guate,MIXCO,Villa Nuevaa,2025-06-17 10:00,2,1,Lluvias,10,0
+18,,guate,MIXCO,Escuintla Centro,2025-09-12 10:00,X,1,Lluvias,-3,0
+19,,GUATEMALA,MIXCO,Chinautlaa,2025-08-15 10:00,X,1,Lluvias,-3,0
+20,,Escuintla,MIXCO,Mixcoo,2025-06-16 10:00,2,1,Lluvias,10,0
+21,99,Escuintla,MIXCO,Mixcoo,2025-01-13 10:00,X,1,Lluvias,-3,0
+22,05,GUATEMALA,MIXCO,Villa Nuevaa,2025-09-14 10:00,1,1,Lluvias,10,0
+23,01,GUATEMALA,MIXCO,Escuintla Centro,2025-08-10 10:00,2,1,Lluvias,-3,0
+24,99,GUATEMALA,MIXCO,Chinautlaa,2025-03-15 10:00,2,1,Lluvias,10,0
+25,05,GUATEMALA,MIXCO,Mixcoo,2025-05-18 10:00,1,1,Lluvias,abc,0
+26,99,Escuintla,MIXCO,Mixcoo,2025-06-17 10:00,2,1,Lluvias,10,0
+27,01,Escuintla,MIXCO,Villa Nuevaa,2025-07-15 10:00,2,1,Lluvias,-3,0
+28,99,GUATEMALA,MIXCO,Escuintla Centro,2025-05-18 10:00,1,1,Lluvias,,0
+29,01,GUATEMALA,MIXCO,Chinautlaa,2025-01-16 10:00,1,1,Lluvias,10,0
+30,05,Escuintla,MIXCO,Mixcoo,2025-09-16 10:00,X,1,Lluvias,-3,0
+31,,GUATEMALA,MIXCO,Mixcoo,2025-09-10 10:00,2,1,Lluvias,abc,0
+32,,GUATEMALA,MIXCO,Villa Nuevaa,2025-05-12 10:00,1,1,Lluvias,10,0
+33,99,GUATEMALA,MIXCO,Escuintla Centro,2025-02-14 10:00,2,1,Lluvias,-3,0
+34,,guate,MIXCO,Chinautlaa,2025-05-12 10:00,1,1,Lluvias,10,0
+35,05,guate,MIXCO,Mixcoo,2025-08-12 10:00,X,1,Lluvias,10,0
+36,,GUATEMALA,MIXCO,Mixcoo,2025-06-11 10:00,1,1,Lluvias,,0
+37,05,Escuintla,MIXCO,Villa Nuevaa,2025-02-16 10:00,2,1,Lluvias,,0
+38,01,Escuintla,MIXCO,Escuintla Centro,2025-07-14 10:00,1,1,Lluvias,-3,0
+39,05,Escuintla,MIXCO,Chinautlaa,2025-03-15 10:00,2,1,Lluvias,-3,0
+40,99,guate,MIXCO,Mixcoo,2025-02-16 10:00,X,1,Lluvias,abc,0
+5,01,GUATEMALA,MIXCO,Mixcoo,2025-01-18 10:00,1,1,Lluvias,,0

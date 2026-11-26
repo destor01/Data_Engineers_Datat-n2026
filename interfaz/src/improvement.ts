@@ -121,7 +121,7 @@ export function mountImprovement(page: HTMLElement): void {
       box.replaceChildren(
         h('div', { class: 'rec-cabecera' }, chip(pTexto, pTono), estado, r.generado_por === 'ia' ? chip('Redactada con IA', 'info') : null),
         h('h3', { text: r.titulo }),
-        h('p', { class: 'muted', text: `Regla: ${r.regla_nombre} · ${r.afectados.toLocaleString('es-GT')} registros afectados${r.total_registros ? ` de ${r.total_registros.toLocaleString('es-GT')}` : ''}` }),
+        h('p', { class: 'muted', text: `Regla: ${r.regla_nombre} · ${r.afectados.toLocaleString('es-GT')} ${r.afectados === 1 ? 'caso detectado' : 'casos detectados'}${r.total_registros ? ` en una base de ${r.total_registros.toLocaleString('es-GT')} registros` : ''}` }),
         ...TEXTOS.map(([k, t]) => h('div', { class: 'rec-bloque' }, h('h4', { text: t }), h('p', { text: String(r[k]) }))),
         h('div', { class: 'rec-bloque' }, h('h4', { text: 'Acciones de mejora' }), h('ol', {}, ...r.acciones.map(a => h('li', { text: a })))),
         evidencia, acciones, aprobar, local, historial);

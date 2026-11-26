@@ -1,0 +1,152 @@
+{
+  "fuente": "Audio Audit",
+  "job_id": "ejemplo-sintetico-0001",
+  "archivo": "entrevista_sintetica.mp3",
+  "nota": "TRANSCRIPCIÓN SINTÉTICA para pruebas. Discrepancia sembrada: se dice 'ocho horas' de agua.",
+  "result": {
+    "speakers": [
+      "ENC",
+      "INF"
+    ],
+    "turns": [
+      {
+        "speaker": "ENC",
+        "start": 0,
+        "end": 6,
+        "text": "Buenos días, soy encuestadora de la encuesta de condiciones del hogar. La información es confidencial y solo con fines estadísticos."
+      },
+      {
+        "speaker": "INF",
+        "start": 6,
+        "end": 8,
+        "text": "Buenos días, pase adelante."
+      },
+      {
+        "speaker": "ENC",
+        "start": 9,
+        "end": 13,
+        "text": "¿Qué tipo de vivienda ocupa este hogar? ¿Casa formal, apartamento, rancho u otro?"
+      },
+      {
+        "speaker": "INF",
+        "start": 13,
+        "end": 15,
+        "text": "Es casa formal."
+      },
+      {
+        "speaker": "ENC",
+        "start": 16,
+        "end": 19,
+        "text": "¿La vivienda tiene servicio de agua entubada?"
+      },
+      {
+        "speaker": "INF",
+        "start": 19,
+        "end": 20,
+        "text": "Sí, sí tenemos."
+      },
+      {
+        "speaker": "ENC",
+        "start": 21,
+        "end": 24,
+        "text": "¿Cuántas horas al día tiene servicio de agua?"
+      },
+      {
+        "speaker": "INF",
+        "start": 24,
+        "end": 28,
+        "text": "Como ocho horas, en la mañana nada más."
+      },
+      {
+        "speaker": "ENC",
+        "start": 29,
+        "end": 33,
+        "text": "¿Cuántos cuartos tiene la vivienda, sin contar baño ni cocina?"
+      },
+      {
+        "speaker": "INF",
+        "start": 33,
+        "end": 35,
+        "text": "Tres cuartos."
+      },
+      {
+        "speaker": "ENC",
+        "start": 36,
+        "end": 39,
+        "text": "¿El hogar tiene estufa?"
+      },
+      {
+        "speaker": "INF",
+        "start": 39,
+        "end": 40,
+        "text": "Sí."
+      },
+      {
+        "speaker": "ENC",
+        "start": 41,
+        "end": 43,
+        "text": "¿Cuántas estufas tiene?"
+      },
+      {
+        "speaker": "INF",
+        "start": 43,
+        "end": 44,
+        "text": "Una."
+      },
+      {
+        "speaker": "ENC",
+        "start": 45,
+        "end": 47,
+        "text": "¿Y refrigeradora?"
+      },
+      {
+        "speaker": "INF",
+        "start": 47,
+        "end": 48,
+        "text": "No tenemos."
+      },
+      {
+        "speaker": "ENC",
+        "start": 60,
+        "end": 64,
+        "text": "Ahora sobre usted. ¿Cuántos años cumplidos tiene?"
+      },
+      {
+        "speaker": "INF",
+        "start": 64,
+        "end": 66,
+        "text": "Cuarenta y dos."
+      },
+      {
+        "speaker": "ENC",
+        "start": 67,
+        "end": 71,
+        "text": "¿Trabajó la semana pasada, aunque fuera por una hora?"
+      },
+      {
+        "speaker": "INF",
+        "start": 71,
+        "end": 74,
+        "text": "Sí, en la tienda."
+      },
+      {
+        "speaker": "ENC",
+        "start": 75,
+        "end": 79,
+        "text": "¿Cuánto ganó el mes pasado en su trabajo principal?"
+      },
+      {
+        "speaker": "INF",
+        "start": 79,
+        "end": 82,
+        "text": "Unos dos mil quinientos quetzales."
+      },
+      {
+        "speaker": "ENC",
+        "start": 83,
+        "end": 87,
+        "text": "Muchas gracias por su tiempo."
+      }
+    ]
+  }
+}

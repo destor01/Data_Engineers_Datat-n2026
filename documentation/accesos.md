@@ -6,7 +6,7 @@
 
 | Entorno | URL |
 |---|---|
-| Producción | `https://<proyecto>.vercel.app` |
+| Producción | https://dataton-six.vercel.app |
 
 ## Cuentas
 

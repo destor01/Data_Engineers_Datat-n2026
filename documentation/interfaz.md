@@ -1,60 +1,57 @@
-# Interfaz integrada: instalación y operación
+# Interfaz integrada: operación
 
-La carpeta versionada se llama **interfaz/**. Debe permanecer junto a audio-audit/ y data-audit/. No renombrar los motores ni duplicarlos dentro del frontend.
+La interfaz común vive en `interfaz/` (TypeScript + Vite, sin framework). Reúne los cuatro módulos con un solo inicio de sesión y habla con la API unificada (`api/index.py`). La instalación completa está en [instalación](installation.md) y la publicación en [despliegue](deployment.md); el uso paso a paso, en el [manual de usuario](user-guide.md).
 
-## Demostración
+## Estructura
 
-Desde la raíz del repositorio, con Node.js 20.19+ o 22.12+ y npm:
+| Archivo | Contenido |
+|---|---|
+| `src/main.ts` | Navegación, inicio de sesión (Supabase), formularios de audio y datos |
+| `src/audio.ts` | Audio Audit: transcripción, roles, evaluación JEV, reporte, edición, reglas y calibración |
+| `src/datos.ts` | Data Audit: detalle de auditoría, bandeja de correcciones, historial y correcciones guardadas |
+| `src/survey.ts` | Survey Audit: PDF → formulario, editor, captura, grabación y verificación |
+| `src/improvement.ts` | Quality Improvement: recomendaciones y manuales |
+| `src/services/` | Clientes HTTP de la API |
+| `examples/` | CSV ficticio y WAV de silencio para el modo demo |
 
-```powershell
-cd interfaz
-Copy-Item .env.example .env
-npm ci
-npm run dev
+## Modos
+
+| Modo | Variable | Comportamiento |
+|---|---|---|
+| API (normal) | `VITE_APP_MODE=api` | Usa la API unificada en `/api/*` |
+| Demostración | `VITE_APP_MODE=demo` | Muestra ejemplos sin backend; no procesa el archivo elegido |
+| Con login | `VITE_SUPABASE_URL` y `VITE_SUPABASE_ANON_KEY` definidas | Pide iniciar sesión y envía el token en cada petición |
+| Sin login | Sin esas variables | Solo para uso local: la API atiende únicamente `localhost` |
+
+Para probar Survey Audit y Quality Improvement sin PostgreSQL se puede definir `QA_STORAGE=demo` en el `.env` del servidor: el estado se guarda en `interfaz/backend/almacen/extensions.demo.json` (solo datos sintéticos).
+
+## Comandos
+
+Desde `interfaz/`:
+
+```bash
+npm ci              # instalar dependencias exactas
+npm run dev         # desarrollo en http://127.0.0.1:5173 (reenvía /api/* a API_BACKEND_URL)
+npm run typecheck   # verificación de tipos
+npm run build       # compilación a dist/
+npm run preview     # servir dist/ localmente
 ```
 
-Copiar la plantilla solo si todavía no existe .env. Abrir la URL indicada por Vite. La demostración no envía archivos y presenta ejemplos identificados, no resultados del archivo. examples/ contiene un CSV ficticio y un WAV de silencio.
+## Límites
 
-## Procesamiento real: API unificada
+- 50 MB por archivo de audio o de datos (`VITE_MAX_AUDIO_MB`, `VITE_MAX_DATA_MB`; en el servidor, `QA_MAX_MB`).
+- La lectura de un PDF largo se hace por bloques desde el navegador: la página debe quedar abierta mientras se lee (se puede continuar después).
+- «Dejar de esperar» termina la espera en el navegador; no cancela el trabajo en el servidor.
 
-Todos los backends corren en un solo proceso: la API unificada de la raíz (`api/index.py`). Desde la raíz del repositorio, con Python 3.12 y un `.env` copiado de `.env.example`:
-
-```powershell
-python -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -r requirements.txt
-.\.venv\Scripts\python.exe -m uvicorn api.index:app --port 8000 --reload
-```
-
-En otra terminal, desde `interfaz/`, con `.env.local` copiado de `.env.example` y `VITE_APP_MODE=api`: `npm ci` y `npm run dev`. Vite envía `/api/*` al puerto 8000.
-
-- Con Supabase configurado (`SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` en `.env`, y `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` en `interfaz/.env.local`) la interfaz pide iniciar sesión y los archivos se guardan en Supabase Storage.
-- Sin Supabase no hay login, la API solo atiende `localhost` y Data Audit guarda originales y resultados en `data-audit/qa_bases_datos/almacen/`.
-
-`DATABASE_URL` debe apuntar a un PostgreSQL con el esquema y los catálogos cargados (`supabase/configurar.py` y `scripts/cargar_config.py`, ver [despliegue](deployment.md)). Las variables `VITE_` son públicas en el navegador: nunca contienen secretos.
-
-## Recorrido de usuario
-
-1. Audio Audit: elegir audio, modelo y opciones; iniciar, revisar turnos y reproductor, descargar TXT. Identificar voces no identifica el rol del encuestador.
-2. Data Audit: elegir base con versión activa, período y archivo; iniciar, revisar puntuaciones, dimensiones y hallazgos; filtrar severidad; descargar resumen y archivos disponibles.
-3. Dejar de esperar termina la espera en el navegador; no cancela el motor. Un error de API no activa automáticamente la demostración.
-
-Límites: 50 MB por archivo en audio y datos (máximo del plan gratuito de Supabase; ajustable con `VITE_MAX_AUDIO_MB`, `VITE_MAX_DATA_MB` y `QA_MAX_MB`). En Vercel, cada validación de Data Audit tiene hasta 300 s. El catálogo requiere configuración previa.
-
-## Compilación y despliegue
-
-Desde interfaz/: `npm run typecheck`, `npm run build` y `npm run preview`. La publicación en Vercel (interfaz y API en el mismo proyecto) está en [despliegue](deployment.md).
-
-## Datos y solución de problemas
-
-En el despliegue, toda ruta `/api/*` exige una sesión de Supabase Auth. En local sin Supabase, la API solo responde a `localhost`. Los archivos de Data Audit quedan en el bucket privado `qa-cargas` (o en `almacen/` en local) hasta su retiro por el responsable.
+## Solución de problemas
 
 | Síntoma | Comprobar |
 |---|---|
-| No carga el catálogo | API en el puerto 8000, DATABASE_URL, esquema y versiones activas (`supabase/configurar.py`). |
-| No inicia audio | Llave de AssemblyAI o Deepgram y Supabase Storage; en local sin Supabase, WhisperX, FFmpeg y token de diarización. |
-| Pide iniciar sesión otra vez | La sesión expiró o la cuenta se eliminó en Supabase → Authentication. |
-| Demo después de editar .env | VITE_APP_MODE y reinicio de Vite; no basta cambiar el archivo con el proceso activo. |
-| `/api/salud` responde `login: false` en Vercel | Faltan `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY` o `SUPABASE_URL` en las variables del proyecto. |
-| Espera agotada | Revisar el servidor antes de repetir: el trabajo puede continuar. |
+| No carga el catálogo de bases | API encendida, `DATABASE_URL` y catálogos cargados (`cargar_config`) |
+| No inicia el audio | Llave de AssemblyAI o Deepgram y Supabase Storage; en local sin Supabase, WhisperX, FFmpeg y token de diarización |
+| Pide iniciar sesión otra vez | La sesión venció o la cuenta se eliminó en Supabase → Authentication |
+| Sigue en modo demo tras editar `.env.local` | Reiniciar `npm run dev` o recompilar |
+| `/api/salud` responde `login: false` en Vercel | Faltan `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY` o `SUPABASE_URL` |
+| La evaluación de audio dice «simulada» | Falta `OPENROUTER_API_KEY` en el servidor |
 
-El contrato de rutas y respuestas está en [API de interfaz](../interfaz/docs/API.md). La evidencia y el plan de comprobación están en [Pruebas](testing.md).
+Contrato de la API: [referencia completa](api-referencia.md) y [convenciones](integration-api.md).

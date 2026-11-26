@@ -1,6 +1,6 @@
-# Conexión de API
+# API: convenciones y ejemplos
 
-Una interfaz Vite y una **API unificada** (`api/index.py` → `plataforma/app.py`) que monta en un solo FastAPI las rutas de Audio Audit, Data Audit y las extensiones. En producción ambas viven en el mismo proyecto de Vercel; ver [despliegue](deployment.md).
+Una sola aplicación FastAPI (`api/index.py` → `plataforma/app.py`) atiende a los cuatro módulos. La lista completa de las **78 operaciones** (método, ruta, parámetros, validaciones y respuestas) está en la [referencia de la API](api-referencia.md), generada del esquema OpenAPI. En local, la documentación interactiva está en `http://127.0.0.1:8000/docs` (desactivada en producción).
 
 ```mermaid
 flowchart LR
@@ -9,54 +9,131 @@ flowchart LR
   UI -->|PUT con URL firmada| ST[(Supabase Storage)]
   API --> AUDIO[Audio Audit: app.main]
   API --> QA[Data Audit: qa.api]
-  API --> EXT[Extensiones: surveys / improvement]
-  API --> DB[(Supabase PostgreSQL)]
+  API --> EXT[Survey Audit y Quality Improvement]
+  API --> DB[(PostgreSQL)]
   API --> ST
 ```
 
-## Rutas y contratos
+| Prefijo | Módulo | Operaciones |
+|---|---|---:|
+| `/api/qa/*` | Data Audit | 22 |
+| `/api/surveys/*` | Survey Audit | 22 |
+| `/api/improvement/*` | Quality Improvement | 13 |
+| `/api/jobs`, `/api/transcribe*`, `/api/storage/*`, `/api/rules`, `/api/calibration`, `/api/salud`… | Audio Audit y plataforma | 21 |
 
-| Ruta desde navegador | Destino | Contrato |
-|---|---|---|
-| `/api/storage/upload-url` → `/api/transcribe/cloud` | Audio Audit | URL firmada, subida directa y transcripción en la nube; retorna job_id |
-| `/api/transcribe` | Audio Audit | Multipart (local con WhisperX); retorna job_id |
-| `/api/jobs/{id}` | Audio Audit | Polling de progreso y resultado |
-| `/api/qa/bases` | Data Audit | Catálogo disponible |
-| `/api/qa/cargas/subida` → `/api/qa/cargas/{id}/procesar` | Data Audit | Registro, subida y validación; retorna reporte y descargas |
-| `/api/surveys/documents` → `/preparar` → `/leer` → `/formulario` | Survey Audit | Subida del PDF, lectura por bloques de páginas con Claude y armado del formulario |
-| `/api/surveys/templates` | Survey Audit | Formularios: revisión, edición y finalización |
-| `/api/surveys/interviews` | Survey Audit | Entrevistas con código único, captura y finalización con validación |
-| `/api/surveys/interviews/{id}/transcripts` y `/encuestador` | Survey Audit | JSON de Audio Audit con autorización y hablante del encuestador |
-| `/api/surveys/interviews/{id}/verificacion` y `/findings/{id}` | Survey Audit | Comparación con la grabación y revisión de resultados |
-| `/api/improvement/reports` | Quality Improvement | reporte.json de Data Audit |
-| `/api/improvement/recommendations` | Quality Improvement | Edición, aprobación con cargo y descarte |
-| `/api/improvement/manuals` | Quality Improvement | Borrador editable, finalización y PDF |
+## Autenticación
 
-La interfaz existente procesa audio por su cliente original. En Survey Audit se importa el JSON descargado de Audio Audit («Descargar JSON»). Quality Improvement importa reporte.json; tampoco se envía automáticamente el resultado de Data Audit.
+- Con Supabase configurado, toda ruta salvo `/api/salud` exige la cabecera `Authorization: Bearer <access_token>` con el token de sesión de Supabase Auth. La interfaz la agrega sola.
+- Sin Supabase (local), no hay token pero la API solo atiende peticiones a `localhost`/`127.0.0.1`.
+- Las escrituras (`POST`, `PUT`, `PATCH`, `DELETE`) con cabecera `Origin` solo se aceptan desde el mismo origen.
 
-El vínculo se guarda por UUID de entrevista, no por nombre de archivo. No se transmiten tokens HF al módulo de encuestas. La verificación con la grabación nunca cambia las respuestas registradas en el formulario.
+## Formato de datos
 
-## Inicio local
+- Peticiones y respuestas en JSON (UTF-8), salvo las subidas de archivos (cuerpo binario con `PUT` o `multipart/form-data`) y las descargas (archivo o `{"url": …}` firmada por 5 minutos).
+- Fechas en ISO 8601. Identificadores: UUID en Data Audit y Audio Audit; cadenas aleatorias en Survey y QI.
 
-Ver [instalación y operación integrada](interfaz.md#procesamiento-real-api-unificada). Resumen, desde la raíz:
+## Errores
 
-```powershell
-python -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -r requirements.txt
-.\.venv\Scripts\python.exe -m uvicorn api.index:app --port 8000 --reload
+Todos los errores devuelven JSON con un mensaje en español pensado para mostrarse al usuario:
+
+```json
+{"detail": "El archivo supera el límite de 50 MB."}
 ```
 
-Y desde `interfaz`: `npm ci` y `npm run dev`. Documentación interactiva de la API: `http://127.0.0.1:8000/docs` (desactivada en Vercel).
+Al finalizar una entrevista con respuestas inválidas, Survey Audit agrega la lista de errores:
 
-Para probar las extensiones solo con material sintético, establecer `QA_STORAGE=demo` en `.env`; guarda su estado en `interfaz/backend/almacen/extensions.demo.json`.
+```json
+{"detail": "Hay 2 respuestas por corregir antes de finalizar.",
+ "errores": [{"clave": "A3", "pregunta": "A3. ¿Cuántas horas al día tiene servicio de agua?", "mensaje": "El valor debe ser mayor o igual a 0 y menor o igual a 24."},
+             {"clave": "C2#1", "pregunta": "Persona 1 · C2. ¿Cuántos años cumplidos tiene?", "mensaje": "Falta la respuesta."}]}
+```
 
-## Límites actuales y evolución
+Los errores de validación de FastAPI (422) devuelven `detail` como lista de campos inválidos.
 
-- El formulario generado desde el PDF debe revisarse antes de finalizarlo; la lectura con IA puede equivocarse en tablas complejas.
-- PostgreSQL usa un agregado JSONB transaccional en esquema separado. Adecuado para piloto; normalizar entidades y paginar antes de alta concurrencia.
-- Autenticación con Supabase Auth en la API unificada; todavía no hay roles ni permisos por institución.
-- Las tasas no se calculan sin confirmar unidad de conteo; no se suman hallazgos como personas únicas.
-- Manual en PDF. Aprobación técnica no equivale a validación del INE.
-- Las pruebas con archivo de demo no certifican PostgreSQL, GPU ni los motores reales.
+| Código | Significado | Ejemplos |
+|---|---|---|
+| 200 | Correcto | — |
+| 400 | Petición incompleta | «El archivo está vacío.», «El archivo todavía no se ha subido.» |
+| 401 | Sin sesión o sesión vencida | Falta el token |
+| 403 | Acceso no permitido | Host distinto de `localhost` sin Supabase; «Origen no permitido.»; rutas de llaves bloqueadas |
+| 404 | No existe | «Carga no encontrada.» |
+| 409 | El estado no permite la acción | «La carga ya se está procesando.», «Primero vincula la transcripción de la entrevista.» |
+| 413 | Archivo demasiado grande | Bases > 50 MB, transcripciones > 5 MB |
+| 422 | Datos no válidos | Campos fuera de rango, entrevista con errores, reporte con formato desconocido, falta autorización de la grabación |
+| 429 / 503 | Servicio externo ocupado o no configurado | IA ocupada (la interfaz reintenta); falta `ANTHROPIC_API_KEY` |
 
-Despliegue: interfaz y API en un proyecto de Vercel; PostgreSQL, Auth y archivos privados en un proyecto de Supabase. Ver [despliegue](deployment.md).
+## Ejemplo 1: auditar una base (Data Audit)
+
+Flujo en tres pasos: registrar → subir → procesar.
+
+```http
+POST /api/qa/cargas/subida
+Content-Type: application/json
+
+{"base": "EMERGENCIAS", "anio": 2025, "mes": 3, "archivo": "emergencias_sintetica.csv", "tamano": 2801}
+```
+
+```json
+{"carga_id": "6f1c…", "base": "EMERGENCIAS", "max_bytes": 52428800,
+ "subida": {"url": "<URL firmada de Supabase Storage o /api/qa/cargas/6f1c…/archivo>", "metodo": "PUT", "directa": true}}
+```
+
+Luego `PUT` del archivo a `subida.url` y:
+
+```http
+POST /api/qa/cargas/6f1c…/procesar
+```
+
+La respuesta es el reporte: puntaje global y por dimensión, total de registros, hallazgos, correcciones aplicadas y pendientes, excluidos y rutas de descarga (`/api/qa/cargas/{id}/descargar/corregido|bitacora|reporte|original`). Con lo aprobado en la bandeja, `POST /api/qa/cargas/{id}/reprocesar` genera una nueva versión.
+
+## Ejemplo 2: decidir una sugerencia
+
+```http
+POST /api/qa/sugerencias/{correccion_id}/aprobar
+Content-Type: application/json
+
+{"codigo": "0108"}
+```
+
+Sin `codigo` se aprueba el valor sugerido; con `codigo` se aprueba otro código del catálogo (buscado con `GET /api/qa/catalogos/{catalogo}?q=mixco`). Para rechazar: `POST /api/qa/sugerencias/{correccion_id}/rechazar` con `{"comentario": "El municipio no corresponde al departamento"}`. La decisión sobre la base completa usa `POST /api/qa/cargas/{id}/aprobar` o `/rechazar` con `{"comentario": "…"}`.
+
+## Ejemplo 3: Survey Audit
+
+```http
+POST /api/surveys/interviews
+{"template_id": "<formulario finalizado>", "nombre": "Hogar 15"}
+
+PATCH /api/surveys/interviews/{id}
+{"responses": {"A1": "1", "A2": "1", "A3": 30, "_personas": 1}, "revision": 1}
+
+POST /api/surveys/interviews/{id}/submit        → 422 con "errores" (A3 fuera de 0–24)
+```
+
+## Ejemplo 4: Quality Improvement
+
+```http
+POST /api/improvement/reports
+{"report": { …contenido de reporte.json… }, "archivo": "reporte.json"}
+```
+
+```json
+{"institucion": "SECONRED", "base": "EMERGENCIAS", "periodo": "Marzo 2025",
+ "nuevas": 5, "actualizadas": 0, "con_ia": false, "recomendaciones": [ … ]}
+```
+
+## Ejemplo 5: estado del servicio
+
+```http
+GET /api/salud
+```
+
+```json
+{"ok": true, "login": true, "entorno": "vercel"}
+```
+
+## Reglas de integración
+
+- El vínculo entre una entrevista y su transcripción se guarda por identificador de entrevista y huella del contenido, no por nombre de archivo.
+- La verificación con la grabación nunca cambia las respuestas registradas.
+- Data Audit no se conecta automáticamente con Quality Improvement: se descarga `reporte.json` y se sube (mejora pendiente).
+- Las llaves de proveedores nunca viajan desde el navegador: solo se configuran en el servidor.
