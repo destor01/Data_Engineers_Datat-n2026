@@ -1,0 +1,336 @@
+{
+  "_descripcion": "Explicación de cada regla de Data Audit para las recomendaciones de Quality Improvement. {detalle_hallazgo} se reemplaza por las cifras y columnas reales del reporte. Las reglas <BASE>_LLAVE_UNICA usan la entrada LLAVE_UNICA.",
+  "GEN_COLUMNA_FALTANTE": {
+    "titulo": "Faltan columnas obligatorias en el archivo",
+    "que_ocurrio": "El archivo enviado no trae columnas que la base del INE exige: {detalle_hallazgo}.",
+    "por_que": "Sin esas columnas el INE no puede publicar ni comparar la información, y todos los registros quedan incompletos para esas variables.",
+    "como_corregir": "Agregar las columnas faltantes con el nombre que usa la plantilla del INE (o uno de sus nombres reconocidos) y volver a enviar el archivo.",
+    "como_prevenir": "Generar el archivo siempre desde la misma plantilla oficial y no eliminar ni renombrar columnas al exportar desde el sistema de origen.",
+    "acciones": [
+      "Comparar los encabezados del archivo con la plantilla oficial antes de cada envío.",
+      "Configurar la exportación del sistema institucional para que incluya todas las columnas requeridas.",
+      "Consultar al INE antes de quitar o renombrar una columna."
+    ]
+  },
+  "GEN_COLUMNA_DESCONOCIDA": {
+    "titulo": "Columnas que no forman parte de la base oficial",
+    "que_ocurrio": "El archivo incluye columnas que no están en la definición de la base del INE: {detalle_hallazgo}. No se publican.",
+    "por_que": "Las columnas no reconocidas pueden ser datos que el INE no necesita, una columna oficial con otro nombre o información sensible que no debería enviarse.",
+    "como_corregir": "Revisar cada columna: si corresponde a una variable oficial, usar el nombre oficial; si no se necesita, quitarla del archivo.",
+    "como_prevenir": "Mantener una lista de las columnas autorizadas y enviar solo esas. Si se agrega una variable nueva, acordarlo antes con el INE.",
+    "acciones": [
+      "Revisar con el área técnica qué representa cada columna adicional.",
+      "Retirar del archivo las columnas que no forman parte del acuerdo de intercambio.",
+      "Solicitar al INE la incorporación formal de cualquier variable nueva."
+    ]
+  },
+  "GEN_COLUMNA_DUPLICADA": {
+    "titulo": "Encabezados de columna repetidos",
+    "que_ocurrio": "Hay encabezados que aparecen más de una vez: {detalle_hallazgo}.",
+    "por_que": "Cuando dos columnas se llaman igual no es posible saber cuál contiene el dato correcto; el sistema las toma por posición y puede mezclar información.",
+    "como_corregir": "Dar un nombre distinto a cada columna o eliminar la que esté repetida y volver a enviar el archivo.",
+    "como_prevenir": "Validar que no haya encabezados repetidos antes de exportar, especialmente al copiar y pegar columnas en Excel.",
+    "acciones": [
+      "Revisar la fila de encabezados en busca de nombres repetidos antes del envío.",
+      "Evitar copiar columnas completas entre archivos sin renombrarlas."
+    ]
+  },
+  "GEN_COLUMNA_VACIA": {
+    "titulo": "Columnas vacías sin encabezado",
+    "que_ocurrio": "El archivo trae columnas sin nombre y sin datos: {detalle_hallazgo}. Se eliminaron automáticamente.",
+    "por_que": "No afectan los datos, pero indican que el archivo fue editado a mano o exportado con un formato distinto al acordado.",
+    "como_corregir": "No requiere corrección en este envío; el archivo corregido ya no las incluye.",
+    "como_prevenir": "Exportar el archivo directamente desde el sistema y evitar dejar columnas vacías al editar en Excel.",
+    "acciones": [
+      "Eliminar columnas vacías antes de enviar el archivo."
+    ]
+  },
+  "GEN_PII": {
+    "titulo": "Columnas con datos personales",
+    "que_ocurrio": "El archivo contiene columnas con datos personales: {detalle_hallazgo}. Se eliminaron del archivo corregido.",
+    "por_que": "Enviar nombres, documentos de identidad u otros datos personales que no son necesarios para la estadística expone a las personas y no cumple con el principio de usar solo los datos indispensables.",
+    "como_corregir": "Quitar esas columnas del archivo antes de enviarlo al INE.",
+    "como_prevenir": "Definir con el área legal y de sistemas qué columnas nunca deben salir de la institución y configurar la exportación para excluirlas.",
+    "acciones": [
+      "Configurar la exportación para que no incluya datos personales que el INE no requiere.",
+      "Revisar cada archivo antes del envío para confirmar que no contiene nombres ni documentos de identidad.",
+      "Capacitar al personal que prepara los envíos sobre protección de datos personales."
+    ]
+  },
+  "GEN_HOJAS_DISTINTAS": {
+    "titulo": "Hojas del archivo con estructuras diferentes",
+    "que_ocurrio": "Las hojas del archivo no tienen los mismos encabezados: {detalle_hallazgo}.",
+    "por_que": "Cuando cada hoja tiene columnas distintas, la información no puede unirse correctamente y algunos registros pueden quedar incompletos.",
+    "como_corregir": "Unificar los encabezados de todas las hojas con la plantilla oficial, o enviar todos los registros en una sola hoja.",
+    "como_prevenir": "Usar una única plantilla para todas las hojas del período y no modificar sus columnas.",
+    "acciones": [
+      "Enviar los datos del período en una sola hoja cuando sea posible.",
+      "Verificar que todas las hojas tengan exactamente los mismos encabezados."
+    ]
+  },
+  "GEN_NULO_TEXTUAL": {
+    "titulo": "Textos usados para indicar que no hay dato",
+    "que_ocurrio": "Se usaron palabras como \"N/A\", \"ninguno\" o \"-\" para indicar ausencia de dato: {detalle_hallazgo}. Se dejaron vacías.",
+    "por_que": "Cada persona escribe la ausencia de dato de forma distinta; eso impide contar cuántos datos faltan y puede confundirse con un valor real.",
+    "como_corregir": "No requiere corrección en este envío; el archivo corregido ya trata esas celdas como vacías.",
+    "como_prevenir": "Acordar una sola forma de registrar la ausencia de dato (celda vacía o el código de ignorado oficial) y aplicarla en el sistema de captura.",
+    "acciones": [
+      "Definir en el manual de captura cómo se registra un dato desconocido.",
+      "Configurar el sistema de captura para no aceptar textos como \"N/A\" en campos codificados."
+    ]
+  },
+  "GEN_SIN_DATO": {
+    "titulo": "Registros sin dato",
+    "que_ocurrio": "Hay registros sin información en variables que deberían completarse: {detalle_hallazgo}.",
+    "por_que": "Los datos faltantes reducen la calidad de las estadísticas y obligan a usar códigos de ignorado, lo que limita el análisis.",
+    "como_corregir": "Completar la información en el sistema de origen cuando esté disponible y volver a enviar los registros.",
+    "como_prevenir": "Revisar en el punto de registro que esos campos se completen y capacitar al personal sobre su importancia.",
+    "acciones": [
+      "Identificar en qué oficinas o procesos se originan los registros sin dato.",
+      "Reforzar con el personal de registro la obligación de completar estos campos.",
+      "Agregar alertas en el sistema de captura cuando el campo quede vacío."
+    ]
+  },
+  "GEN_REQUERIDA": {
+    "titulo": "Datos obligatorios vacíos",
+    "que_ocurrio": "Variables obligatorias llegaron vacías: {detalle_hallazgo}.",
+    "por_que": "Son variables indispensables para la estadística; sin ellas el registro no puede clasificarse ni publicarse correctamente.",
+    "como_corregir": "Recuperar el dato en el sistema de origen y reenviar los registros afectados.",
+    "como_prevenir": "Hacer que el sistema de captura no permita guardar un registro sin estos datos.",
+    "acciones": [
+      "Configurar estos campos como obligatorios en el sistema de captura.",
+      "Revisar antes de cada envío que ninguna variable obligatoria quede vacía.",
+      "Dar seguimiento con las oficinas donde se originan los registros incompletos."
+    ]
+  },
+  "GEN_ESPACIOS": {
+    "titulo": "Espacios sobrantes en los textos",
+    "que_ocurrio": "Algunas celdas tenían espacios al inicio, al final o dobles: {detalle_hallazgo}. Se quitaron automáticamente.",
+    "por_que": "Los espacios sobrantes hacen que valores iguales parezcan distintos y dificultan la codificación.",
+    "como_corregir": "No requiere corrección en este envío; el archivo corregido ya está limpio.",
+    "como_prevenir": "Configurar el sistema de captura para eliminar espacios sobrantes al guardar.",
+    "acciones": [
+      "Aplicar limpieza automática de espacios en el sistema de captura o en la exportación."
+    ]
+  },
+  "GEN_CODIFICACION": {
+    "titulo": "Valores enviados como texto en lugar de código",
+    "que_ocurrio": "Algunas variables codificadas llegaron como texto y se convirtieron al código del INE: {detalle_hallazgo}.",
+    "por_que": "Enviar textos en lugar de códigos obliga a interpretarlos y aumenta el riesgo de error cuando un texto está mal escrito o es ambiguo.",
+    "como_corregir": "No requiere corrección en este envío; la conversión ya se aplicó en el archivo corregido.",
+    "como_prevenir": "Enviar directamente los códigos oficiales del catálogo del INE en lugar de los nombres.",
+    "acciones": [
+      "Incorporar los catálogos oficiales del INE en el sistema de la institución.",
+      "Usar listas desplegables con códigos en lugar de campos de texto libre."
+    ]
+  },
+  "GEN_CATALOGO": {
+    "titulo": "Valores que no existen en el catálogo oficial",
+    "que_ocurrio": "Hay valores que no existen en el catálogo oficial del INE: {detalle_hallazgo}.",
+    "por_que": "Un código que no existe no puede clasificarse; el registro queda fuera de las estadísticas por esa variable o con un valor incorrecto.",
+    "como_corregir": "Revisar los valores señalados, sustituirlos por el código oficial correcto y reenviar. Data Audit propone sugerencias que pueden aprobarse.",
+    "como_prevenir": "Mantener actualizados los catálogos oficiales en el sistema de captura y validar los códigos al momento de registrar.",
+    "acciones": [
+      "Actualizar en el sistema institucional los catálogos vigentes del INE.",
+      "Validar los códigos al momento de la captura, no solo al exportar.",
+      "Revisar y aprobar las sugerencias de corrección de Data Audit."
+    ]
+  },
+  "GEN_CODIFICACION_IA": {
+    "titulo": "Texto libre pendiente de codificar",
+    "que_ocurrio": "Hay registros con texto libre que todavía no tiene un código aprobado: {detalle_hallazgo}.",
+    "por_que": "Hasta que se apruebe un código, esos registros no pueden clasificarse en la estadística oficial.",
+    "como_corregir": "Revisar y aprobar las sugerencias de codificación de Data Audit; una vez aprobadas se aplican automáticamente en los siguientes envíos.",
+    "como_prevenir": "Reducir el uso de texto libre en la captura y registrar directamente con el catálogo oficial cuando sea posible.",
+    "acciones": [
+      "Revisar periódicamente las sugerencias de codificación pendientes.",
+      "Sustituir campos de texto libre por listas del catálogo oficial."
+    ]
+  },
+  "GEN_TIPO": {
+    "titulo": "Valores con un tipo de dato incorrecto",
+    "que_ocurrio": "Hay valores que no corresponden al tipo de dato esperado (por ejemplo, letras donde se espera un número): {detalle_hallazgo}.",
+    "por_que": "Un valor con tipo incorrecto no puede procesarse y se pierde para el análisis.",
+    "como_corregir": "Corregir los valores en el sistema de origen con el formato correcto y reenviar los registros.",
+    "como_prevenir": "Configurar los campos del sistema para aceptar solo el tipo de dato correspondiente (números, fechas o códigos).",
+    "acciones": [
+      "Restringir en el sistema de captura el tipo de dato de cada campo.",
+      "Evitar formatear manualmente las columnas en Excel antes del envío."
+    ]
+  },
+  "GEN_RANGO": {
+    "titulo": "Valores fuera del rango permitido",
+    "que_ocurrio": "Hay valores fuera del rango aceptado para la variable: {detalle_hallazgo}.",
+    "por_que": "Un valor fuera de rango suele ser un error de digitación y distorsiona promedios y totales.",
+    "como_corregir": "Verificar los registros señalados contra el documento fuente y corregir los valores incorrectos.",
+    "como_prevenir": "Agregar en el sistema de captura límites mínimos y máximos para estas variables.",
+    "acciones": [
+      "Configurar límites de validación en los campos numéricos.",
+      "Revisar los registros señalados con el documento fuente."
+    ]
+  },
+  "GEN_FORMATO": {
+    "titulo": "Valores con formato incorrecto",
+    "que_ocurrio": "Hay valores que no cumplen el formato requerido (por ejemplo, fechas u horas): {detalle_hallazgo}.",
+    "por_que": "Con un formato incorrecto el dato no puede interpretarse de forma confiable y puede perderse.",
+    "como_corregir": "Corregir el formato de los valores señalados según la plantilla oficial y reenviar.",
+    "como_prevenir": "Usar un formato único para fechas y horas en todo el sistema y en la exportación.",
+    "acciones": [
+      "Definir y documentar el formato oficial de fechas y horas para los envíos.",
+      "Configurar la exportación para aplicar ese formato automáticamente."
+    ]
+  },
+  "AIRE_MES_REPRESENTATIVO": {
+    "titulo": "Meses sin suficientes lecturas",
+    "que_ocurrio": "Algunos meses no tienen lecturas suficientes para ser representativos y se excluyeron: {detalle_hallazgo}.",
+    "por_que": "Un promedio mensual calculado con pocas lecturas no refleja la calidad del aire real del mes.",
+    "como_corregir": "Revisar si existen lecturas faltantes que puedan recuperarse de los equipos de monitoreo y reenviarlas.",
+    "como_prevenir": "Dar mantenimiento preventivo a las estaciones y documentar los periodos en que un equipo estuvo fuera de servicio.",
+    "acciones": [
+      "Registrar en una bitácora los días en que cada estación no tomó lecturas y su causa.",
+      "Programar mantenimiento preventivo de los equipos de monitoreo.",
+      "Recuperar y enviar las lecturas almacenadas en los equipos cuando sea posible."
+    ]
+  },
+  "AIRE_RANGO_PM": {
+    "titulo": "Concentraciones de partículas fuera de lo posible",
+    "que_ocurrio": "Hay lecturas de material particulado por encima del valor plausible: {detalle_hallazgo}.",
+    "por_que": "Valores tan altos suelen deberse a fallas del sensor o errores de registro y alteran los promedios de calidad del aire.",
+    "como_corregir": "Verificar las lecturas señaladas con el equipo de monitoreo y marcarlas como inválidas si corresponden a una falla.",
+    "como_prevenir": "Calibrar periódicamente los sensores y revisar automáticamente las lecturas extremas antes del envío.",
+    "acciones": [
+      "Calibrar los sensores según el calendario del fabricante.",
+      "Revisar las lecturas extremas antes de incluirlas en el envío."
+    ]
+  },
+  "DEF_PERIODO_OCURRENCIA": {
+    "titulo": "Defunciones de otro año en el envío del período",
+    "que_ocurrio": "Hay defunciones que ocurrieron en un año distinto al del envío: {detalle_hallazgo}. Se excluyeron de la base del período.",
+    "por_que": "Mezclar años distorsiona las estadísticas del período y puede contar dos veces una misma defunción.",
+    "como_corregir": "Enviar esas defunciones en el reporte del año en que ocurrieron o como registro tardío, según lo acordado con el INE.",
+    "como_prevenir": "Filtrar por fecha de ocurrencia al preparar cada envío y separar los registros tardíos.",
+    "acciones": [
+      "Filtrar los registros por fecha de ocurrencia antes de exportar.",
+      "Acordar con el INE cómo enviar los registros tardíos."
+    ]
+  },
+  "DEF_OCURRIO_EXTRANJERO": {
+    "titulo": "Defunciones ocurridas fuera de Guatemala",
+    "que_ocurrio": "Hay defunciones ocurridas fuera del país: {detalle_hallazgo}. No forman parte de la estadística nacional.",
+    "por_que": "La estadística vital nacional solo incluye hechos ocurridos en Guatemala; incluirlos alteraría los totales.",
+    "como_corregir": "No requiere corrección del dato; deben enviarse separados o identificados claramente.",
+    "como_prevenir": "Identificar las defunciones ocurridas en el extranjero al exportar y enviarlas por separado si el INE las requiere.",
+    "acciones": [
+      "Separar en la exportación los hechos ocurridos fuera del país."
+    ]
+  },
+  "DEF_FECHA_COHERENCIA": {
+    "titulo": "Fechas de defunción que no coinciden",
+    "que_ocurrio": "En algunos registros el día, mes o año de ocurrencia no coinciden con la fecha de defunción: {detalle_hallazgo}.",
+    "por_que": "Si las partes de la fecha no coinciden no es posible saber cuál es la fecha correcta, lo que afecta los conteos por mes y año.",
+    "como_corregir": "Verificar la fecha en el acta de defunción y corregir el campo incorrecto.",
+    "como_prevenir": "Calcular día, mes y año automáticamente a partir de la fecha completa en lugar de capturarlos por separado.",
+    "acciones": [
+      "Derivar automáticamente día, mes y año desde la fecha de defunción en el sistema.",
+      "Revisar los registros señalados contra el acta."
+    ]
+  },
+  "NAC_PERIODO_OCURRENCIA": {
+    "titulo": "Nacimientos de otro año en el envío del período",
+    "que_ocurrio": "Hay nacimientos que ocurrieron en un año distinto al del envío: {detalle_hallazgo}. Se excluyeron de la base del período.",
+    "por_que": "Mezclar años distorsiona las estadísticas de natalidad del período.",
+    "como_corregir": "Enviar esos nacimientos en el reporte del año en que ocurrieron o como inscripción tardía, según lo acordado con el INE.",
+    "como_prevenir": "Filtrar por fecha de ocurrencia al preparar cada envío y separar las inscripciones tardías.",
+    "acciones": [
+      "Filtrar los registros por fecha de nacimiento antes de exportar.",
+      "Acordar con el INE cómo enviar las inscripciones tardías."
+    ]
+  },
+  "NAC_HIJOS_COHERENCIA": {
+    "titulo": "Total de hijos que no cuadra",
+    "que_ocurrio": "En algunos registros el total de hijos tenidos no es igual a hijos vivos más nacidos muertos: {detalle_hallazgo}.",
+    "por_que": "Esta inconsistencia afecta los indicadores de fecundidad y mortalidad que el INE calcula con estos datos.",
+    "como_corregir": "Revisar los registros señalados con la información de la madre y corregir el valor incorrecto.",
+    "como_prevenir": "Calcular el total automáticamente o validar la suma al momento de la captura.",
+    "acciones": [
+      "Agregar en el sistema una validación que compare el total con la suma de vivos y nacidos muertos.",
+      "Capacitar al personal de registro en la captura de estas tres variables."
+    ]
+  },
+  "PNC_MAYOR_EDAD_COHERENCIA": {
+    "titulo": "Mayoría de edad que no coincide con la edad",
+    "que_ocurrio": "En algunos registros la marca de mayor o menor de edad no coincide con la edad registrada: {detalle_hallazgo}.",
+    "por_que": "Clasificar mal a una persona como menor o mayor de edad altera estadísticas sensibles sobre adolescentes en conflicto con la ley.",
+    "como_corregir": "Verificar la edad en el documento fuente y corregir la marca o la edad según corresponda.",
+    "como_prevenir": "Calcular la mayoría de edad automáticamente a partir de la edad o fecha de nacimiento.",
+    "acciones": [
+      "Derivar automáticamente la marca de mayoría de edad desde la edad en el sistema.",
+      "Revisar los registros señalados con el documento fuente."
+    ]
+  },
+  "PNC_DIA_SEMANA_COHERENCIA": {
+    "titulo": "Día de la semana que no corresponde a la fecha",
+    "que_ocurrio": "En algunos registros el día de la semana no coincide con la fecha del hecho: {detalle_hallazgo}.",
+    "por_que": "Indica un error en la fecha o en el día registrado, lo que afecta los análisis por día de la semana.",
+    "como_corregir": "Verificar la fecha correcta del hecho y corregir el campo que esté mal.",
+    "como_prevenir": "Calcular el día de la semana automáticamente a partir de la fecha en lugar de escribirlo.",
+    "acciones": [
+      "Derivar automáticamente el día de la semana desde la fecha en el sistema.",
+      "Revisar los registros señalados contra el parte policial."
+    ]
+  },
+  "PNC_MES_PERIODO": {
+    "titulo": "Hechos fuera del mes del envío",
+    "que_ocurrio": "Hay registros con fecha fuera del período del envío: {detalle_hallazgo}.",
+    "por_que": "Incluir hechos de otros meses distorsiona las estadísticas mensuales y puede duplicar registros entre envíos.",
+    "como_corregir": "Confirmar si esos registros pertenecen a otro mes y enviarlos en el período correcto.",
+    "como_prevenir": "Filtrar por fecha del hecho al preparar cada envío mensual.",
+    "acciones": [
+      "Filtrar por fecha del hecho al exportar cada mes.",
+      "Revisar que la fecha capturada sea la del hecho y no la del registro."
+    ]
+  },
+  "EMERG_SUBTIPO_AMENAZA": {
+    "titulo": "Subtipo de amenaza que no corresponde",
+    "que_ocurrio": "En algunos registros el subtipo no pertenece a la amenaza indicada: {detalle_hallazgo}.",
+    "por_que": "Una clasificación inconsistente impide saber qué tipo de evento ocurrió realmente y altera las estadísticas por amenaza.",
+    "como_corregir": "Revisar cada registro señalado y corregir la amenaza o el subtipo para que correspondan.",
+    "como_prevenir": "Mostrar en el sistema de captura solo los subtipos que corresponden a la amenaza seleccionada.",
+    "acciones": [
+      "Configurar listas dependientes: primero la amenaza y luego solo sus subtipos.",
+      "Capacitar al personal en la clasificación oficial de amenazas."
+    ]
+  },
+  "EMERG_PERIODO": {
+    "titulo": "Emergencias fuera del año del envío",
+    "que_ocurrio": "Hay emergencias con fecha fuera del año del envío: {detalle_hallazgo}.",
+    "por_que": "Incluir eventos de otros años distorsiona los totales anuales y puede duplicar registros.",
+    "como_corregir": "Confirmar la fecha de los eventos señalados y enviarlos en el año que corresponde.",
+    "como_prevenir": "Filtrar por fecha del evento al preparar cada envío anual.",
+    "acciones": [
+      "Filtrar por fecha del evento al exportar.",
+      "Revisar que la fecha registrada sea la del evento."
+    ]
+  },
+  "LLAVE_UNICA": {
+    "titulo": "Registros duplicados",
+    "que_ocurrio": "Hay registros que se repiten con la misma identificación: {detalle_hallazgo}.",
+    "por_que": "Los duplicados inflan los totales y hacen que un mismo hecho se cuente más de una vez.",
+    "como_corregir": "Revisar los registros repetidos, conservar uno solo por hecho y reenviar.",
+    "como_prevenir": "Impedir en el sistema que se registre dos veces la misma identificación y revisar duplicados antes de exportar.",
+    "acciones": [
+      "Configurar en el sistema una validación de identificación única.",
+      "Revisar duplicados antes de cada envío."
+    ]
+  },
+  "_GENERICA": {
+    "titulo": "Problema de calidad detectado",
+    "que_ocurrio": "Data Audit detectó este problema: {detalle_hallazgo}.",
+    "por_que": "Afecta la calidad de la información que la institución envía al INE.",
+    "como_corregir": "Revisar los registros señalados contra la fuente y corregirlos antes del siguiente envío.",
+    "como_prevenir": "Agregar una validación en el sistema de captura que evite este problema.",
+    "acciones": [
+      "Revisar los registros señalados con la fuente original."
+    ]
+  }
+}

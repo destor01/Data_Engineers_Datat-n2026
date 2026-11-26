@@ -35,7 +35,7 @@ Cada petición a `/api/*` lleva el token de la sesión y la API lo verifica con 
    .\.venv\Scripts\python.exe supabase\configurar.py
    ```
 
-   El script se puede repetir. Aplica en orden `data-audit/qa_bases_datos/schema.sql`, `audio-audit/supabase/schema.sql`, `interfaz/backend/migrations/001_extensions.sql` y `supabase/seguridad.sql` (buckets privados, RLS en todas las tablas y sin permisos para los roles del navegador). Alternativa: pegar esos cuatro archivos, en ese orden, en el SQL Editor.
+   El script se puede repetir. Aplica en orden `data-audit/qa_bases_datos/schema.sql`, `audio-audit/supabase/schema.sql`, `interfaz/backend/migrations/001_extensions.sql` y `supabase/seguridad.sql` (buckets privados `audio-interviews`, `qa-cargas` y `encuestas`, RLS en todas las tablas y sin permisos para los roles del navegador). Alternativa: pegar esos cuatro archivos, en ese orden, en el SQL Editor.
 
 5. **Cargar los catálogos del INE** (necesarios para que aparezcan bases en Data Audit). Los diccionarios no están en el repositorio:
 
@@ -62,8 +62,10 @@ Cada petición a `/api/*` lleva el token de la sesión y la API lo verifica con 
    | `SUPABASE_SERVICE_ROLE_KEY` | llave secret/service_role | **secreta** |
    | `DATABASE_URL` | cadena **Transaction pooler** (puerto 6543) | **secreta** |
    | `ASSEMBLYAI_API_KEY` o `DEEPGRAM_API_KEY` | transcripción en la nube | **secreta** |
-   | `ANTHROPIC_API_KEY` | opcional: codificador con IA de Data Audit | **secreta** |
+   | `ANTHROPIC_API_KEY` | Survey Audit (leer el PDF del cuestionario y verificar entrevistas) y redacción de Quality Improvement; también el codificador con IA de Data Audit | **secreta** |
    | `OPENROUTER_API_KEY` | opcional: evaluación JEV de entrevistas | **secreta** |
+
+   Opcionales sin secreto: `SURVEY_IA_MODELO`, `MEJORA_IA_MODELO` (modelo de Claude; por defecto `claude-sonnet-5-5`), `SURVEY_PAGINAS_BLOQUE` (páginas del PDF por petición, 2), `SURVEY_STORAGE_BUCKET` (`encuestas`) y `MEJORA_IA=0` para no usar IA en Quality Improvement.
 
    Las variables `VITE_*` quedan dentro del JavaScript que descarga el navegador: nunca pongas ahí una llave secreta.
 3. Deploy. Comprobar `https://<tu-proyecto>.vercel.app/api/salud`: debe responder `{"ok": true, "login": true, "entorno": "vercel"}`.
@@ -95,4 +97,5 @@ Vite envía `/api/*` al puerto 8000. Si no defines las variables de Supabase, no
 - **Transcripción:** con AssemblyAI el trabajo es asíncrono y no tiene ese límite; Deepgram responde dentro de la misma petición.
 - **Pausa de Supabase:** los proyectos gratuitos se pausan tras una semana sin actividad. Entra a la plataforma antes de una presentación.
 - **Evaluación JEV y editor de reglas:** existen en la API (`/api/jobs/{id}/evaluate`, `/api/rules`), pero la interfaz publicada solo transcribe; la pantalla propia de `audio-audit/` no se publica.
+- **Lectura de cuestionarios:** cada petición lee un bloque de páginas en menos de 300 s y la interfaz lanza varias a la vez. Un PDF de 72 páginas tarda varios minutos; si Anthropic limita las peticiones, la interfaz reintenta sola. La página debe quedar abierta mientras se lee (se puede continuar después).
 - **Roles:** cualquier cuenta creada en Supabase tiene acceso a todo. Data Audit registra a cada usuario que entra como `analista_ine` para su bitácora.

@@ -7,9 +7,11 @@
 -- 1. Buckets privados de Storage
 --    audio-interviews: grabaciones (lo crea también audio-audit/supabase/schema.sql)
 --    qa-cargas:        bases institucionales originales y sus resultados (Data Audit)
+--    encuestas:        cuestionarios en PDF para generar formularios (Survey Audit)
 INSERT INTO storage.buckets (id, name, public)
 VALUES ('audio-interviews', 'audio-interviews', false),
-       ('qa-cargas', 'qa-cargas', false)
+       ('qa-cargas', 'qa-cargas', false),
+       ('encuestas', 'encuestas', false)
 ON CONFLICT (id) DO NOTHING;
 
 -- 2. Row Level Security en TODAS las tablas del esquema public.

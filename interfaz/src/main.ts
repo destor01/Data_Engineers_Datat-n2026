@@ -47,7 +47,7 @@ function route(focus = false) {
     if (active) link.setAttribute('aria-current', 'page'); else link.removeAttribute('aria-current');
   });
   document.title = `${current === 'inicio' ? 'Vista general' : current === 'audio' ? 'Audio Audit' : current === 'encuestas' ? 'Survey Audit' : current === 'mejora' ? 'Quality Improvement' : 'Data Audit'} · Quality Audit`;
-  if (focus) { el(`${current}Title`).focus({ preventScroll: true }); window.scrollTo({ top: 0 }); }
+  if (focus) { document.getElementById(`${current}Title`)?.focus({ preventScroll: true }); window.scrollTo({ top: 0 }); }
   if (current === 'datos' && !basesLoaded) void loadBases();
 }
 window.addEventListener('hashchange', () => route(true));
@@ -107,6 +107,7 @@ window.addEventListener('beforeunload', event => { if (controllers.audio || cont
 
 let audioObjectUrl: string | undefined;
 let transcriptText = '';
+let lastJob: { job: AudioJob; file: string } | undefined;
 el('audioForm').addEventListener('submit', async event => {
   event.preventDefault();
   if (controllers.audio) return;
@@ -137,6 +138,7 @@ el('audioForm').addEventListener('submit', async event => {
       });
       heading.append(node('strong', turn.speaker), time); article.append(heading, node('p', turn.text)); transcript.append(article);
     }
+    lastJob = { job, file: file.name };
     transcriptText = `${demo ? 'DEMOSTRACIÓN: texto de ejemplo, no corresponde al audio seleccionado.\n\n' : ''}${turns.map(turn => `[${duration(turn.start)} - ${duration(turn.end)}] ${turn.speaker}: ${turn.text}`).join('\n\n')}`;
     el('audioSummary').textContent = `${file.name} · ${turns.length} intervenciones${job.result?.warning ? ` · ${job.result.warning}` : ''}`;
     el('audioResult').hidden = false;
@@ -145,6 +147,14 @@ el('audioForm').addEventListener('submit', async event => {
   finally { delete controllers.audio; busy('audio', false); el('audioProgress').hidden = true; }
 });
 el('downloadTranscript').addEventListener('click', () => save(demo ? 'ejemplo-transcripcion.txt' : 'transcripcion.txt', transcriptText));
+el('downloadTranscriptJson').addEventListener('click', () => {
+  if (!lastJob) return;
+  const { job, file } = lastJob;
+  // Formato que Survey Audit acepta para vincular la grabación a una entrevista.
+  const data = { fuente: 'Audio Audit', job_id: job.job_id, archivo: file, generado: new Date().toISOString(), demostracion: demo || undefined,
+    result: { speakers: job.result?.speakers ?? [], turns: job.result?.turns ?? [] } };
+  save(`${file.replace(/\.[^.]+$/, '')}-transcripcion.json`, JSON.stringify(data, null, 2), 'application/json');
+});
 
 let currentReport: AuditResult | undefined;
 function renderFindings() {

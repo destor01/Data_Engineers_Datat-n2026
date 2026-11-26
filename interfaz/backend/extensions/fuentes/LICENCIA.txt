@@ -1,0 +1,4 @@
+Fuentes DejaVu Sans (https://dejavu-fonts.github.io/), usadas para generar el manual en PDF.
+Licencia libre de DejaVu: derivadas de Bitstream Vera (Bitstream Vera Fonts Copyright) con
+cambios de dominio público. Permite usar, copiar y redistribuir las fuentes incluidas en software.
+Texto completo: https://dejavu-fonts.github.io/License.html

@@ -1,6 +1,6 @@
 {
-  "RENAP": "Verificar fechas y catálogos geográficos aprobados antes del envío.",
-  "PNC": "Revisar equivalencias de motivos con responsables del catálogo; enviar ambigüedades a revisión.",
-  "INSIVUMEH": "Verificar completitud temporal y documentar umbrales y excepciones aprobados.",
-  "SE-CONRED": "Validar encabezados y códigos especiales; no sustituir marcadores por cero sin confirmación."
+  "RENAP": {"nombre": "Registro Nacional de las Personas", "bases": ["DEFUNCIONES", "NACIMIENTOS"]},
+  "PNC": {"nombre": "Policía Nacional Civil", "bases": ["DETENIDOS"]},
+  "INSIVUMEH": {"nombre": "Instituto Nacional de Sismología, Vulcanología, Meteorología e Hidrología", "bases": ["CALIDAD_AIRE"]},
+  "SECONRED": {"nombre": "Secretaría Ejecutiva de la Coordinadora Nacional para la Reducción de Desastres", "bases": ["EMERGENCIAS"]}
 }
