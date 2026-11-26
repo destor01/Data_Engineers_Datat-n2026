@@ -24,7 +24,20 @@ BEGIN
   END LOOP;
 END $$;
 
--- 3. Defensa adicional: los roles del navegador no tienen permisos sobre las tablas.
+-- 3. Permisos: el backend (llave secreta = rol service_role) necesita acceso a las tablas para la
+--    Data API (Audio Audit la usa), aunque el proyecto no otorgue permisos automáticos a tablas nuevas.
+--    Los roles del navegador (anon, authenticated) no tienen ninguno.
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'service_role') THEN
+    GRANT USAGE ON SCHEMA public TO service_role;
+    GRANT ALL ON ALL TABLES IN SCHEMA public TO service_role;
+    GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO service_role;
+    ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO service_role;
+    ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO service_role;
+  END IF;
+END $$;
+
 DO $$
 BEGIN
   IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon') THEN
