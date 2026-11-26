@@ -7,19 +7,31 @@
   "functions": {
     "api/index.py": {
       "maxDuration": 300,
-      "excludeFiles": "{**/node_modules/**,**/dist/**,**/tests/**,**/*.md,documentation/**,interfaz/src/**,interfaz/examples/**,audio-audit/src/**,audio-audit/static/**,audio-audit/audit-report.html,data-audit/qa_bases_datos/backend/datos/**,**/.venv/**,**/almacen/**,**/uploads/**}"
+      "excludeFiles": "{**/node_modules/**,**/dist/**,**/tests/**,**/*.md,documentation/**,interfaz/src/**,audio-audit/src/**,audio-audit/static/**}"
     }
   },
   "rewrites": [
-    { "source": "/api/(.*)", "destination": "/api/index.py" }
+    {
+      "source": "/api/(.*)",
+      "destination": "/api/index.py"
+    }
   ],
   "headers": [
     {
       "source": "/(.*)",
       "headers": [
-        { "key": "X-Content-Type-Options", "value": "nosniff" },
-        { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
-        { "key": "X-Frame-Options", "value": "DENY" }
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "strict-origin-when-cross-origin"
+        },
+        {
+          "key": "X-Frame-Options",
+          "value": "DENY"
+        }
       ]
     }
   ]
