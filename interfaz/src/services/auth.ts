@@ -23,7 +23,12 @@ export async function signIn(email: string, password: string): Promise<Session> 
   if (!client) throw new Error('El inicio de sesión no está configurado.');
   const { data, error } = await client.auth.signInWithPassword({ email: email.trim(), password });
   if (error || !data.session) {
-    throw new Error(error?.message === 'Invalid login credentials' ? 'Correo o contraseña incorrectos.' : 'No se pudo iniciar sesión. Intenta de nuevo.');
+    const detail = error?.message ?? '';
+    if (detail === 'Invalid login credentials') throw new Error('Correo o contraseña incorrectos.');
+    if (/email not confirmed/i.test(detail)) throw new Error('La cuenta no está confirmada. Confírmala en Supabase → Authentication → Users.');
+    if (/invalid api key|no api key/i.test(detail)) throw new Error('La llave de Supabase de la interfaz no es válida (VITE_SUPABASE_ANON_KEY).');
+    if (/disabled/i.test(detail)) throw new Error('El inicio de sesión con correo está desactivado en Supabase → Sign In / Providers.');
+    throw new Error(`No se pudo iniciar sesión${detail ? `: ${detail}` : '.'}`);
   }
   return data.session;
 }
