@@ -78,7 +78,7 @@ Creados por el equipo. No provienen de ninguna persona, hogar ni empresa real; s
 | `documentation/ejemplos/cuestionario_sintetico.pdf` | Survey Audit | Cuestionario de 2 páginas: vivienda, tabla de equipamiento con pases y sección por persona | — (sirve para generar el formulario) |
 | `documentation/ejemplos/transcripcion_sintetica.json` | Survey / Audio Audit | Entrevista sintética en el formato que descarga Audio Audit | Se dicen «ocho horas» de agua (para comparar con lo registrado) |
 | `documentation/ejemplos/generar_ejemplos.py` | — | Script que vuelve a crear el PDF y la transcripción | — |
-| `audio-audit/encovi_jev/examples/transcript_example.json` | Audio Audit | Entrevista ENCOVI simulada, marcada SINTÉTICA | Incumplimientos A1-08, A1-11, A1-12, A2-10 |
+| `documentation/ejemplos/entrevista_encovi_sintetica.json` (copia de `audio-audit/encovi_jev/examples/transcript_example.json`) | Audio Audit | Entrevista ENCOVI simulada, marcada SINTÉTICA | Incumplimientos A1-08, A1-11, A1-12, A2-10 |
 | `interfaz/examples/datos-demostracion.csv`, `silencio-demostracion.wav` | Interfaz (modo demo) | CSV ficticio y audio de silencio | — |
 | `survey-audit/templates/pilot.synthetic.json` | Survey Audit | Formulario piloto versión 1 | — |
 

@@ -91,7 +91,7 @@ Reporte con veredicto, puntaje global y por sección (A1 Apertura y contacto ini
 
 | Situación | Comportamiento |
 |---|---|
-| Sin `OPENROUTER_API_KEY` | Evaluación de demostración marcada como «simulada» (no se presenta como real). |
+| Sin `OPENROUTER_API_KEY` | La interfaz avisa que falta la llave y no calcula el puntaje; la transcripción se puede revisar igual. |
 | Sin llave de transcripción | Se puede cargar una transcripción existente. |
 | Audio sin voz o un solo hablante | Las reglas sin evidencia quedan como «no se puede saber»; el veredicto puede ser «Sin evidencia suficiente». |
 | Error del proveedor | El trabajo queda en estado `error` con el mensaje; se puede reintentar. |

@@ -12,7 +12,7 @@ Guía para el personal técnico del INE y de las instituciones. No se necesitan 
 
 ## 2. Navegación
 
-El menú de la izquierda tiene cinco opciones. **Vista general** resume la plataforma; las otras cuatro son los módulos.
+El menú de la izquierda tiene cinco opciones. **Vista general** muestra los cuatro módulos, cada uno con su descripción y un botón para empezar: **Evaluar una entrevista** (Audio Audit), **Auditar una base** (Data Audit), **Crear un formulario** (Survey Audit) y **Generar recomendaciones** (Quality Improvement).
 
 ![Vista general](img/02-inicio.png)
 
@@ -85,7 +85,7 @@ Para cerrar, registrar la **decisión técnica** (aprobar o rechazar la base) co
 
 ## 4. Audio Audit: supervisar una entrevista
 
-**Ejemplo para practicar:** botón **Cargar ejemplo ENCOVI** (entrevista sintética con incumplimientos sembrados).
+**Ejemplo para practicar:** `entrevista_encovi_sintetica.json` (entrevista ENCOVI sintética con incumplimientos sembrados), cargado desde **¿Ya tienes la transcripción?**.
 
 ### 4.1 Transcribir una grabación
 
@@ -101,7 +101,7 @@ Si ya se tiene la transcripción, usar **¿Ya tienes la transcripción? → Carg
 
 1. En **Evaluar la entrevista con JEV**, indicar qué voz es *Encuestador(a)*, *Informante* u *Otra persona*. Debajo de cada voz se muestran sus primeras frases para reconocerla.
 2. Marcar **Primera visita / contacto inicial** si se deben evaluar las reglas de apertura.
-3. Pulsar **Evaluar con JEV**. Si el servidor no tiene configurado JEV, se puede usar el **Modo de prueba**, que muestra puntajes simulados claramente identificados como tales.
+3. Pulsar **Evaluar con JEV**. La evaluación tarda de segundos a unos minutos según la duración de la entrevista.
 
 ![Asignar roles](img/21-audio-roles.png)
 
@@ -111,6 +111,8 @@ Si ya se tiene la transcripción, usar **¿Ya tienes la transcripción? → Carg
 - **Cumplimiento global** y por sección (A1 Apertura y contacto inicial, A2 Conducta y actitud), **cobertura** (cuántas reglas se pudieron evaluar) y **conducta marcada por hora**.
 - **Principales riesgos**: cada uno con la regla, la probabilidad de incumplimiento, el minuto y la frase de la grabación que lo respalda.
 - **Todas las evaluaciones (51 reglas)** con filtros: incumplidas, a revisar, cumplidas, no aplica.
+
+Las capturas de esta sección se tomaron en el entorno de pruebas con un cliente JEV de prueba (indicado en la línea «Modelo»), sin consumir la API.
 
 ![Puntaje](img/22-audio-puntaje.png)
 ![Riesgos](img/23-audio-riesgos.png)
@@ -202,5 +204,5 @@ Cada respuesta queda como **Coincide**, **No coincide** o **No verificable**, co
 | «El archivo supera el límite» | Dividir el archivo (máximo 50 MB). |
 | La lectura del PDF parece detenida | Esperar: si el servicio de IA está ocupado, la plataforma reintenta sola. Se puede continuar después. |
 | «Primero vincula la transcripción» | Hacer el paso 5.3.1 antes de validar. |
-| El puntaje de audio dice «simulado» | El servidor no tiene JEV configurado; el resultado no es una evaluación real. |
+| «Falta la llave OPENROUTER_API_KEY» al evaluar | El administrador debe configurar JEV en el servidor. |
 | Se aprobó una corrección por error | Data Audit → **Correcciones guardadas** → quitarla y volver a validar la base. |

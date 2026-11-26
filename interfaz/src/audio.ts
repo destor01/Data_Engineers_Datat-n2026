@@ -122,7 +122,6 @@ export function mountAudio(): { abrir: (jobId: string, audioLocal?: string) => P
   let audioUrl: string | null = null;
   let roles: Record<string, Rol> = {};
   let primeraVisita = true;
-  let simulado = false;
   let reproductor: HTMLAudioElement | null = null;
   let lista: HTMLElement | null = null;
 
@@ -144,7 +143,7 @@ export function mountAudio(): { abrir: (jobId: string, audioLocal?: string) => P
       chip(jevListo ? `Evaluación JEV lista · ${estado?.jev_model ?? ''}` : 'Evaluación JEV: falta la llave OPENROUTER_API_KEY', jevListo ? 'ok' : 'warn'),
       button(`Reglas de evaluación (${reglas.length || 51})${estado?.customized_rules_count ? ` · ${estado.customized_rules_count} editadas` : ''}`, () => abrirCatalogo(), 'secondary'),
       button(calibracion?.is_calibrated ? `Calibración activa (${Object.values(calibracion.groups ?? {}).filter(g => g.fitted).length} grupos)` : `Calibración: ${calibracion?.total_labels ?? 0} correcciones`, () => abrirCalibracion(), 'secondary'));
-    const aviso = jevListo ? null : h('p', { class: 'muted', text: 'Para calcular el puntaje con JEV, agrega OPENROUTER_API_KEY (secreta) en las variables de Vercel. Mientras tanto puedes usar el modo de prueba, con puntajes simulados.' });
+    const aviso = jevListo ? null : h('p', { class: 'muted', text: 'Para calcular el puntaje con JEV, agrega OPENROUTER_API_KEY (secreta) en las variables de Vercel..' });
 
     const archivo = input('file', '', { accept: '.json,.txt,application/json,text/plain' });
     const cargar = button('Cargar transcripción', () => run(cargar, msg, async () => {
@@ -157,11 +156,6 @@ export function mountAudio(): { abrir: (jobId: string, audioLocal?: string) => P
       await mostrar(t, null); void refrescar();
       return 'Transcripción cargada. Asigna los roles y evalúa la entrevista.';
     }), 'primary');
-    const ejemplo: HTMLButtonElement | null = estado?.example_available === false ? null : button('Cargar ejemplo ENCOVI', () => run(ejemplo, msg, async () => {
-      const t = await api<Trabajo>('transcript/example', 'POST');
-      await mostrar(t, null); void refrescar();
-      return 'Ejemplo cargado.';
-    }), 'secondary');
 
     const historial = recientes.length ? h('div', { class: 'historial-audio' }, ...recientes.slice(0, 10).map(j => {
       const b = h('button', { type: 'button', class: `historial-item${actual?.job_id === j.job_id ? ' activo' : ''}` },
@@ -177,7 +171,7 @@ export function mountAudio(): { abrir: (jobId: string, audioLocal?: string) => P
       h('div', { class: 'editor-grid audio-extra' },
         h('section', { class: 'card' }, h('h2', { text: '¿Ya tienes la transcripción?' }),
           h('p', { class: 'muted', text: 'Sube un JSON de turnos o un TXT con marcas de hablante (por ejemplo, los que descargas aquí) para evaluarlo sin volver a transcribir.' }),
-          field('Transcripción (.json o .txt)', archivo), h('div', { class: 'form-actions' }, cargar, ejemplo)),
+          field('Transcripción (.json o .txt)', archivo), h('div', { class: 'form-actions' }, cargar)),
         h('section', { class: 'card' }, h('h2', { text: 'Entrevistas recientes' }), historial)));
   }
 
@@ -268,13 +262,11 @@ export function mountAudio(): { abrir: (jobId: string, audioLocal?: string) => P
     });
     const primera = input('checkbox'); primera.checked = primeraVisita;
     primera.addEventListener('change', () => { primeraVisita = primera.checked; });
-    const prueba = input('checkbox'); prueba.checked = simulado;
-    prueba.addEventListener('change', () => { simulado = prueba.checked; });
     const evaluar = button(t.evaluation ? 'Volver a evaluar con JEV' : 'Evaluar con JEV', () => run(evaluar, local, async () => {
       if (!Object.values(roles).includes('ENCUESTADOR')) throw new Error('Indica qué hablante es el encuestador antes de evaluar.');
-      if (!simulado && !estado?.openrouter_configured) throw new Error('Falta la llave OPENROUTER_API_KEY en el servidor. Agrégala en Vercel o activa el modo de prueba.');
-      local.show(simulado ? 'Calculando una evaluación simulada…' : 'Evaluando la entrevista con JEV… puede tardar unos minutos.');
-      const nuevo = await api<Trabajo>(`jobs/${encodeURIComponent(t.job_id)}/evaluate`, 'POST', { speaker_map: roles, first_contact: primeraVisita, mock: simulado }, 300_000);
+      if (!estado?.openrouter_configured) throw new Error('Falta la llave OPENROUTER_API_KEY en el servidor. Agrégala en las variables de Vercel.');
+      local.show('Evaluando la entrevista con JEV… puede tardar unos minutos.');
+      const nuevo = await api<Trabajo>(`jobs/${encodeURIComponent(t.job_id)}/evaluate`, 'POST', { speaker_map: roles, first_contact: primeraVisita, mock: false }, 300_000);
       actual = nuevo; pintar(); void refrescar();
       window.setTimeout(() => zona.querySelector('.reporte-jev')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 120);
     }), 'primary');
@@ -309,7 +301,6 @@ export function mountAudio(): { abrir: (jobId: string, audioLocal?: string) => P
         h('p', { class: 'muted', text: 'Confirma quién es el encuestador y quién el informante; luego ejecuta la evaluación. Se aplican las reglas que hayas reescrito.' }),
         h('div', { class: 'roles-hablantes' }, ...selects),
         h('label', { class: 'check' }, primera, 'Primera visita / contacto inicial (evalúa las reglas de apertura A1)'),
-        h('label', { class: 'check' }, prueba, 'Modo de prueba (puntajes simulados, sin consultar a JEV)'),
         h('div', { class: 'form-actions' }, evaluar), local),
       leyendaEl, lista);
   }
@@ -507,7 +498,7 @@ export function mountAudio(): { abrir: (jobId: string, audioLocal?: string) => P
         update_future_rule: conRegla, rule_override: conRegla ? form.datos() : null,
       });
       actual = resp.job;
-      if (reevaluar) actual = await api<Trabajo>(`jobs/${encodeURIComponent(t.job_id)}/evaluate`, 'POST', { speaker_map: roles, first_contact: primeraVisita, mock: simulado }, 300_000);
+      if (reevaluar) actual = await api<Trabajo>(`jobs/${encodeURIComponent(t.job_id)}/evaluate`, 'POST', { speaker_map: roles, first_contact: primeraVisita, mock: false }, 300_000);
       m.cerrar(); pintar(); void refrescar();
       msg.show(reevaluar ? 'Cambios guardados y entrevista evaluada de nuevo.' : 'Evaluación corregida.');
     };

@@ -256,7 +256,7 @@ La transferencia entre módulos es **manual a propósito**. Así una persona dec
 | Data Audit | PostgreSQL con esquema y configuración cargados | No hay bases para elegir |
 | Codificación con IA (Data Audit) | `ANTHROPIC_API_KEY` | Sigue con similitud de texto (RapidFuzz) |
 | Transcripción en la nube | `ASSEMBLYAI_API_KEY` o `DEEPGRAM_API_KEY` | Se puede cargar una transcripción `.json`/`.txt`, o usar WhisperX local |
-| Evaluación JEV | `OPENROUTER_API_KEY` | Solo modo de prueba (puntajes simulados, marcados como tales) |
+| Evaluación JEV | `OPENROUTER_API_KEY` | Se transcribe y se revisa el texto, pero no se calcula el puntaje |
 | Survey Audit (leer PDF y verificar) | `ANTHROPIC_API_KEY` | No se puede generar el formulario; validación y captura sí funcionan |
 | Quality Improvement | — | Sin IA usa el texto estándar de cada regla |
 

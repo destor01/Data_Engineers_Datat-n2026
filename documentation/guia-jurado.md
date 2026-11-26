@@ -19,7 +19,7 @@ Ruta sugerida para entender, probar y evaluar Quality Audit sin ayuda del equipo
 |---|---|---|---|
 | 0–6 | **Data Audit** | Base *Emergencias · SECONRED*, 2025, marzo; subir `emergencias_sintetica.csv` | Puntaje por dimensión, hallazgos explicados, bandeja: aprobar «Mixcoo», elegir un código, rechazar otro; *Aplicar correcciones aprobadas*; descargar la bitácora |
 | 6–10 | **Quality Improvement** | Subir el reporte JSON descargado | Recomendaciones agrupadas con cifras reales; aprobar una con cargo; crear el manual y ver el PDF |
-| 10–15 | **Audio Audit** | *Cargar ejemplo ENCOVI* → asignar roles → *Evaluar con JEV* (modo de prueba si JEV no está configurado) | Veredicto, riesgos con minuto y frase, 51 reglas; editar una regla y ver cómo cambia el puntaje |
+| 10–15 | **Audio Audit** | *¿Ya tienes la transcripción?* → subir `entrevista_encovi_sintetica.json` → *Cargar transcripción* → asignar roles → *Evaluar con JEV* | Veredicto, riesgos con minuto y frase, 51 reglas; editar una regla y ver cómo cambia el puntaje |
 | 15–20 | **Survey Audit** | Subir `cuestionario_sintetico.pdf`, revisar y finalizar el formulario, capturar con un error, vincular `transcripcion_sintetica.json` y validar | Errores de captura, pases que ocultan preguntas, discrepancia de «horas de agua» con evidencia |
 
 Paso a paso con capturas: [manual de usuario](user-guide.md).

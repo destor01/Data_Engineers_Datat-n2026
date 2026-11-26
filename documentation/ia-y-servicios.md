@@ -50,7 +50,7 @@ Los precios cambian: verificar en la página de cada proveedor antes de presupue
 | Data Audit, primera carga de PNC (≈ 520 textos) | ≈ 0.014 USD | Ídem |
 | Data Audit, cargas siguientes | Una fracción de la primera | Las sugerencias se guardan y no se vuelven a pedir |
 | Data Audit sin IA | 0 | `QA_IA_PROVEEDOR=ninguno` |
-| Evaluación JEV de la entrevista de ejemplo (simulada) | El reporte muestra tokens y costo por evaluación | Campo `usage` del reporte |
+| Evaluación JEV de una entrevista | El reporte muestra los tokens y el costo de cada evaluación | Campo `usage` del reporte |
 | Generar el formulario del cuestionario ENCOVI 2023 (72 páginas) | **1.04 USD por cuestionario** | Medido con la arquitectura actual (Haiku 5.5, bloques de 2 páginas, tablas compactas y lectura por zonas) |
 
 ### Medidas de reducción de costo implementadas

@@ -52,6 +52,6 @@ npm run preview     # servir dist/ localmente
 | Pide iniciar sesión otra vez | La sesión venció o la cuenta se eliminó en Supabase → Authentication |
 | Sigue en modo demo tras editar `.env.local` | Reiniciar `npm run dev` o recompilar |
 | `/api/salud` responde `login: false` en Vercel | Faltan `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY` o `SUPABASE_URL` |
-| La evaluación de audio dice «simulada» | Falta `OPENROUTER_API_KEY` en el servidor |
+| «Falta la llave OPENROUTER_API_KEY» al evaluar | Agregar `OPENROUTER_API_KEY` en las variables del servidor |
 
 Contrato de la API: [referencia completa](api-referencia.md) y [convenciones](integration-api.md).

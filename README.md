@@ -139,7 +139,7 @@ Los pasos completos están en [Instalación y reproducibilidad](documentation/in
 ## Demostración
 
 1. **Sistema:** https://dataton-six.vercel.app.
-2. **Recorrido sugerido para el jurado:** [guía de evaluación](documentation/guia-jurado.md). Incluye un camino sin datos sensibles: el ejemplo ENCOVI sintético en Audio Audit y un CSV de prueba en Data Audit.
+2. **Recorrido sugerido para el jurado:** [guía de evaluación](documentation/guia-jurado.md). Incluye un camino sin datos sensibles: archivos sintéticos para los cuatro módulos en `documentation/ejemplos/` (entrevista ENCOVI, CSV de emergencias, cuestionario y transcripción).
 
 ## Resultados
 
