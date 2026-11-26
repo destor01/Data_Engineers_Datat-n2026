@@ -35,8 +35,11 @@ def disponible() -> bool:
     return bool((os.environ.get("ANTHROPIC_API_KEY") or "").strip())
 
 
+RESPALDO = {"SURVEY_VERIF_MODELO": "SURVEY_IA_MODELO"}  # la verificación usa el modelo del PDF si no se define
+
+
 def modelo(variable: str) -> str:
-    return (os.environ.get(variable) or "claude-sonnet-5-5").strip()
+    return (os.environ.get(variable) or os.environ.get(RESPALDO.get(variable, "")) or "claude-sonnet-5-5").strip()
 
 
 def pdf(datos: bytes) -> dict:

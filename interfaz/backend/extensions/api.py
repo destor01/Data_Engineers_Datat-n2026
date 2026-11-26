@@ -512,24 +512,55 @@ ESQUEMA_VERIF = {
                        "respuesta_escuchada": {"type": "string"},
                        "estado": {"type": "string", "enum": sorted(ESTADOS)}, "explicacion": {"type": "string"}}}}}}
 SISTEMA_VERIF = """Auditas la calidad de entrevistas de encuestas del Instituto Nacional de Estadística de Guatemala.
-Recibes la transcripción de la grabación (cada intervención con id, tiempo y rol) y una lista de preguntas
+Recibes la transcripción de la grabación, una intervención por línea con el formato
+"id [minuto:segundo] rol: texto" (E = encuestador, P = persona entrevistada), y una lista de preguntas
 con la respuesta que el encuestador REGISTRÓ en el formulario digital. Las respuestas oficiales son las
 registradas; la grabación solo sirve como evidencia para verificarlas.
 
 Para cada pregunta de la lista:
 1. Busca las intervenciones donde el encuestador hace esa pregunta (o una equivalente) y donde la persona
    entrevistada responde. Devuelve sus ids en "turnos", en orden. Usa solo ids que existan.
-2. Resume en "respuesta_escuchada" lo que respondió la persona entrevistada, en pocas palabras.
+2. Resume en "respuesta_escuchada" lo que respondió la persona entrevistada, en pocas palabras
+   (máximo 12). Déjalo vacío si es no_verificable.
 3. "estado":
    - coincidencia: lo escuchado corresponde a la respuesta registrada (aunque se diga con otras palabras,
      o la opción registrada sea la que corresponde a lo dicho).
    - discrepancia: lo escuchado indica claramente una respuesta distinta a la registrada.
    - no_verificable: la pregunta no aparece en la grabación, la respuesta es inaudible, ambigua, o no
      hay forma de compararla. En ese caso "turnos" puede ir vacío.
-4. "explicacion": una frase clara para un revisor sin conocimientos técnicos (qué se escuchó y por qué
-   coincide o no). Menciona el minuto aproximado cuando ayude.
+4. "explicacion": solo en las discrepancias, una frase corta y clara para un revisor sin conocimientos
+   técnicos (qué se registró y qué se escuchó). En coincidencia y no_verificable déjala vacía.
 No inventes contenido que no esté en la transcripción. Devuelve un resultado por cada "clave" recibida."""
-POR_LOTE = 25
+POR_LOTE = 80
+EXPLICACION = {'coincidencia': 'Lo que se escucha en la grabación corresponde a la respuesta registrada.',
+               'no_verificable': 'No se encontró una respuesta clara a esta pregunta en la grabación.'}
+
+
+def _transcripcion_compacta(turnos: list[dict], encuestador: str) -> str:
+    """Una línea por intervención: ocupa mucho menos que el JSON y Claude la lee igual de bien."""
+    lineas = []
+    for x in turnos:
+        seg = int(x['start'])
+        rol = 'E' if x['speaker'] == encuestador else f"P({x['speaker']})"
+        texto = ' '.join(str(x['text']).split())
+        lineas.append(f"{x['id']} [{seg // 60:02d}:{seg % 60:02d}] {rol}: {texto}")
+    return '\n'.join(lineas)
+
+
+def _consultar(transcripcion: str, preguntas: list[dict]) -> list[dict]:
+    """La transcripción va en un bloque con caché: del segundo grupo en adelante se cobra ~10 %.
+    Si la respuesta no cabe, el grupo se parte en dos."""
+    contenido = [
+        {"type": "text", "text": 'TRANSCRIPCIÓN:\n' + transcripcion, "cache_control": {"type": "ephemeral"}},
+        {"type": "text", "text": 'PREGUNTAS A VERIFICAR (JSON):\n' + json.dumps(preguntas, ensure_ascii=False, separators=(',', ':'))},
+    ]
+    try:
+        return ia.generar('SURVEY_VERIF_MODELO', SISTEMA_VERIF, contenido, ESQUEMA_VERIF, max_tokens=16000).get('resultados', [])
+    except ia.IARespuestaLarga:
+        if len(preguntas) < 2:
+            return []
+        mitad = len(preguntas) // 2
+        return _consultar(transcripcion, preguntas[:mitad]) + _consultar(transcripcion, preguntas[mitad:])
 
 
 def _etiqueta(q: dict, valor: Any) -> str:
@@ -588,19 +619,14 @@ def verificar_lote(key: str, n: int):
     preguntas = [p for p in _preguntas_verificables(item) if p['clave'] in claves]
     t = item['transcripcion']
     encuestador = item['encuestador']
-    turnos = [dict(id=x['id'], inicio=round(x['start'], 1), fin=round(x['end'], 1),
-                   rol='Encuestador' if x['speaker'] == encuestador else f'Entrevistado ({x["speaker"]})', texto=x['text'])
-              for x in t['turns']]
-    mensaje = ('TRANSCRIPCIÓN (JSON):\n' + json.dumps(turnos, ensure_ascii=False) +
-               '\n\nPREGUNTAS A VERIFICAR (JSON):\n' + json.dumps(preguntas, ensure_ascii=False))
     try:
-        r = ia.generar('SURVEY_IA_MODELO', SISTEMA_VERIF, mensaje, ESQUEMA_VERIF, max_tokens=16000)
+        resultados = _consultar(_transcripcion_compacta(t['turns'], encuestador), preguntas)
     except ia.IANoDisponible as exc:
         return _ocupada(exc)
     por_clave = {p['clave']: p for p in preguntas}
     por_id = {x['id']: x for x in t['turns']}
     nuevos = []
-    for res in r.get('resultados', []):
+    for res in resultados:
         p = por_clave.get(res.get('clave'))
         if not p or res.get('estado') not in ESTADOS:
             continue
@@ -612,7 +638,7 @@ def verificar_lote(key: str, n: int):
         nuevos.append(dict(id=identifier(), clave=p['clave'], codigo=p['codigo'], persona=p['persona'],
                            pregunta=p['pregunta'], registrada=p['registrada'],
                            escuchada=str(res.get('respuesta_escuchada') or '')[:500], estado=estado,
-                           explicacion=str(res.get('explicacion') or '')[:1000], evidencia=evidencia,
+                           explicacion=(str(res.get('explicacion') or '').strip() or EXPLICACION.get(estado, ''))[:1000], evidencia=evidencia,
                            revision=dict(estado='pendiente', justificacion=None, por=None, en=None), creado_en=now()))
     faltantes = claves - {h['clave'] for h in nuevos}
     for clave in faltantes:

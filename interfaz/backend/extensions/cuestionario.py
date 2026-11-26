@@ -29,18 +29,17 @@ ESQUEMA = {
     "properties": {
         "secciones": {"type": "array", "items": {
             "type": "object", "additionalProperties": False,
-            "required": ["titulo", "alcance", "informante", "instrucciones"],
+            "required": ["titulo", "alcance"],
             "properties": {"titulo": {"type": "string"}, "alcance": {"type": "string", "enum": ["hogar", "persona"]},
                            "informante": {"type": "string"}, "instrucciones": {"type": "string"}}}},
         "preguntas": {"type": "array", "items": {
             "type": "object", "additionalProperties": False,
-            "required": ["codigo", "seccion", "texto", "tipo", "obligatoria", "opciones", "pase_a", "instrucciones",
-                         "minimo", "maximo", "catalogo", "pagina"],
+            "required": ["codigo", "seccion", "texto", "tipo", "obligatoria", "opciones", "pagina"],
             "properties": {
                 "codigo": {"type": "string"}, "seccion": {"type": "string"}, "texto": {"type": "string"},
                 "tipo": {"type": "string", "enum": list(TIPOS)}, "obligatoria": {"type": "boolean"},
                 "opciones": {"type": "array", "items": {
-                    "type": "object", "additionalProperties": False, "required": ["codigo", "texto", "pase_a"],
+                    "type": "object", "additionalProperties": False, "required": ["codigo", "texto"],
                     "properties": {"codigo": {"type": "string"}, "texto": {"type": "string"}, "pase_a": _PASE}}},
                 "pase_a": _PASE, "instrucciones": {"type": "string"}, "minimo": {"type": "string"},
                 "maximo": {"type": "string"}, "catalogo": {"type": "string"}, "pagina": {"type": "integer"}}}},
@@ -74,10 +73,12 @@ Reglas:
   ocupación"), deja "opciones" vacío y escribe el nombre de esa lista en "catalogo".
 - "pase_a": saltos impresos ("Pase a la pregunta 8", "Pase a sección B", "Pase a capítulo XV",
   "Fin de la entrevista"). En la opción que lo provoca o, si aplica a cualquier respuesta, en la pregunta.
-  "referencia" es lo impreso (p. ej. "8", "Sección B", "Capítulo XV"). Si no hay salto: tipo "ninguno".
+  "referencia" es lo impreso (p. ej. "8", "Sección B", "Capítulo XV"). Si no hay salto, omite "pase_a".
 - "instrucciones": indicaciones para el encuestador cerca de la pregunta ("Lea las opciones", "Si tiene
   más de uno refiérase al más nuevo"). "informante": quién responde la sección, si está impreso.
 - "obligatoria": true salvo que la pregunta sea opcional o de observaciones.
+- Escribe "instrucciones", "informante", "minimo", "maximo", "catalogo" y "pase_a" solo cuando tengan
+  contenido: si no hay instrucción, rango, catálogo o salto, omite el campo.
 - "minimo"/"maximo": solo si el cuestionario indica un rango; si no, texto vacío.
 - "catalogos": listas de códigos impresas en estas páginas (p. ej. "Códigos de organizaciones").
 - "pagina": número de página del documento original (se indica abajo).

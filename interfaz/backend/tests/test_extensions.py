@@ -33,11 +33,13 @@ def ia_simulada(model, sistema, contenido, esquema, max_tokens):
                 out[k] += PAGINAS[p][k]
         return out
     if sistema == sapi.SISTEMA_VERIF:
-        preguntas = json.loads(contenido[0]['text'].split('PREGUNTAS A VERIFICAR (JSON):\n')[1])
+        assert contenido[0]['cache_control'] == {'type': 'ephemeral'}
+        assert '[00:07] E: ¿Cuántas horas?' in contenido[0]['text']
+        preguntas = json.loads(''.join(x['text'] for x in contenido).split('PREGUNTAS A VERIFICAR (JSON):\n')[1])
         res = []
         for p in preguntas:
             if 'agua entubada' in p['pregunta']:
-                res.append(dict(clave=p['clave'], turnos=[0, 1], respuesta_escuchada='Sí', estado='coincidencia', explicacion='Dijo que sí.'))
+                res.append(dict(clave=p['clave'], turnos=[0, 1], respuesta_escuchada='Sí', estado='coincidencia', explicacion=''))
             elif 'horas' in p['pregunta']:
                 res.append(dict(clave=p['clave'], turnos=[2, 3], respuesta_escuchada='8 horas', estado='discrepancia', explicacion='Se registró 12 y dijo 8.'))
             else:
@@ -128,6 +130,7 @@ class SurveyTests(Base):
         h = c.get(path).json()['hallazgos']
         estados = {x['estado'] for x in h}
         self.assertTrue({'coincidencia', 'discrepancia', 'no_verificable'} <= estados)
+        self.assertTrue(all(x['explicacion'] for x in h))  # se completan las que Claude deja vacías
         d = next(x for x in h if x['estado'] == 'discrepancia')
         self.assertEqual(d['registrada'], '12')
         self.assertEqual([y['inicio'] for y in d['evidencia']], [7, 9])

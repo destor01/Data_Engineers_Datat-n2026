@@ -65,7 +65,7 @@ Cada petición a `/api/*` lleva el token de la sesión y la API lo verifica con 
    | `ANTHROPIC_API_KEY` | Survey Audit (leer el PDF del cuestionario y verificar entrevistas) y redacción de Quality Improvement; también el codificador con IA de Data Audit | **secreta** |
    | `OPENROUTER_API_KEY` | opcional: evaluación JEV de entrevistas | **secreta** |
 
-   Opcionales sin secreto: `SURVEY_IA_MODELO`, `MEJORA_IA_MODELO` (modelo de Claude; por defecto `claude-sonnet-5-5`), `SURVEY_PAGINAS_BLOQUE` (páginas del PDF por petición, 2), `SURVEY_STORAGE_BUCKET` (`encuestas`) y `MEJORA_IA=0` para no usar IA en Quality Improvement.
+   Opcionales sin secreto: `SURVEY_IA_MODELO`, `SURVEY_VERIF_MODELO` (verificación de entrevistas; si no se define usa `SURVEY_IA_MODELO`), `MEJORA_IA_MODELO` (modelo de Claude; por defecto `claude-sonnet-5-5`), `SURVEY_PAGINAS_BLOQUE` (páginas del PDF por petición, 2), `SURVEY_STORAGE_BUCKET` (`encuestas`) y `MEJORA_IA=0` para no usar IA en Quality Improvement.
 
    Las variables `VITE_*` quedan dentro del JavaScript que descarga el navegador: nunca pongas ahí una llave secreta.
 3. Deploy. Comprobar `https://<tu-proyecto>.vercel.app/api/salud`: debe responder `{"ok": true, "login": true, "entorno": "vercel"}`.

@@ -8,7 +8,7 @@ Convierte el cuestionario en PDF de cualquier encuesta en un formulario digital,
 2. **Revisión:** antes de finalizar se pueden corregir textos, códigos, tipo de respuesta, opciones, saltos y rangos. Las preguntas con dudas (por ejemplo, un pase a una pregunta que no existe) quedan marcadas y bloquean la finalización hasta revisarlas.
 3. **Entrevistas:** cada entrevista recibe un código único (`ENT-0001`) junto a su nombre. Las respuestas se capturan en el formulario digital; las secciones por persona se repiten según el número de personas del hogar y los saltos ocultan las preguntas que no aplican. Al finalizar se valida todo y se muestran los errores en lenguaje claro.
 4. **Vincular transcripción de la entrevista:** se sube el JSON descargado de Audio Audit («Descargar JSON»), se confirma la autorización de uso y se elige qué hablante es el encuestador. La transcripción queda ligada solo a esa entrevista: la misma grabación no se puede vincular a otra.
-5. **Validar contra la grabación:** Claude asocia cada pregunta con los turnos de la transcripción (con sus tiempos como evidencia) y clasifica cada respuesta como *coincide*, *no coincide* o *no verificable*. Las respuestas oficiales son siempre las del formulario; la persona revisora confirma o descarta cada resultado con una justificación.
+5. **Validar contra la grabación:** Claude asocia cada pregunta con los turnos de la transcripción (con sus tiempos como evidencia) y clasifica cada respuesta como *coincide*, *no coincide* o *no verificable*. Para ahorrar tokens, la transcripción se envía en formato compacto y con caché, en grupos de hasta 80 preguntas, y Claude solo explica las respuestas que no coinciden. Las respuestas oficiales son siempre las del formulario; la persona revisora confirma o descarta cada resultado con una justificación.
 
 ## Código
 
@@ -20,4 +20,4 @@ Convierte el cuestionario en PDF de cualquier encuesta en un formulario digital,
 ## Configuración
 
 - `ANTHROPIC_API_KEY` (secreta): necesaria para generar formularios y para la verificación.
-- Opcionales: `SURVEY_IA_MODELO` (por defecto `claude-sonnet-5-5`), `SURVEY_PAGINAS_BLOQUE` (páginas por petición, 2 por defecto), `SURVEY_STORAGE_BUCKET` (por defecto `encuestas`; se crea solo si no existe).
+- Opcionales: `SURVEY_IA_MODELO` (modelo para leer el PDF; por defecto `claude-sonnet-5-5`), `SURVEY_VERIF_MODELO` (modelo para la verificación; si no se define usa el mismo; `claude-haiku-5-5` es mucho más económico), `SURVEY_PAGINAS_BLOQUE` (páginas por petición, 2 por defecto), `SURVEY_STORAGE_BUCKET` (por defecto `encuestas`; se crea solo si no existe).
