@@ -232,7 +232,7 @@ Documentación técnica detallada por módulo: [Data Audit](data-audit/qa_bases_
 |---|---|---|
 | Derek Tórtola | [destor01](https://github.com/destor01) | Motor y API de Data Audit, codificador con IA, integración de los módulos en una sola plataforma, despliegue en Vercel y Supabase con inicio de sesión, Survey Audit desde PDF, Quality Improvement, documentación |
 | Guillermo Martínez | [guillermo-martinez42](https://github.com/guillermo-martinez42) | Audio Audit: transcripción, separación de hablantes en la nube, evaluación JEV, edición y calibración de evaluaciones, seguridad de la API de audio |
-| Jennifer Morales | Jennifer | Organización de los módulos, interfaz común de Quality Audit, conexión de la interfaz con Audio y Data Audit, documentación técnica, integración de ramas |
+| Jennifer Morales | [jennn-xs](https://github.com/jennn-xs) | Organización de los módulos, interfaz común de Quality Audit, conexión de la interfaz con Audio y Data Audit, documentación técnica, integración de ramas |
 
 Detalle por commit: [Historial de desarrollo](documentation/historial.md).
 
